@@ -31,7 +31,12 @@ FastAPI、AI Analyzer 皆尚未實作 —— mock 層刻意以固定介面隔開
 npm install
 npm run dev     # http://localhost:3000
 npm run build   # 靜態預渲染 19 頁
+npm test        # vitest
 ```
+
+測試集中在兩處會靜默出錯的地方：`deltaClass()` 的紅漲綠跌，
+以及 screener 的相對條件（去年 / 同業平均）——
+這兩者算錯時畫面看起來完全正常，只有結果是錯的。
 
 ## 技術
 
@@ -57,4 +62,4 @@ Next.js 16（App Router）· React 19 · TypeScript · Tailwind v4
 
 ## 授權
 
-尚未指定。
+MIT，見 [LICENSE](LICENSE)。
