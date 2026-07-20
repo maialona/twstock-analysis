@@ -12,6 +12,7 @@ import { DeltaValue } from "@/components/data/DeltaValue";
 import { MetricGroup, MetricRow } from "@/components/data/MetricRow";
 import { Disclaimer } from "@/components/ui/Disclaimer";
 import { EmptyState } from "@/components/ui/states";
+import { WatchToggle } from "@/components/watchlist/WatchToggle";
 import { COMPANIES, getCompany, getMetrics } from "@/lib/mock/companies";
 import { getPrices } from "@/lib/mock/prices";
 import {
@@ -78,11 +79,17 @@ export default async function StockPage({
             </h1>
           </div>
 
-          <div className="flex items-baseline gap-4">
-            <span className="num text-4xl leading-none tracking-tighter">
-              {formatPrice(metrics.price)}
-            </span>
-            <DeltaValue value={metrics.changePct} arrow className="text-lg" />
+          <div className="flex items-center gap-5">
+            <div className="flex items-baseline gap-4">
+              <span className="num text-4xl leading-none tracking-tighter">
+                {formatPrice(metrics.price)}
+              </span>
+              <DeltaValue value={metrics.changePct} arrow className="text-lg" />
+            </div>
+            <WatchToggle
+              stockId={company.stockId}
+              companyName={company.companyName}
+            />
           </div>
         </div>
       </header>

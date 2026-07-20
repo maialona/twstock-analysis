@@ -1,35 +1,44 @@
-import Link from "next/link";
 import type { Metadata } from "next";
-import { DeltaValue } from "@/components/data/DeltaValue";
-import { Sparkline } from "@/components/data/Sparkline";
+import {
+  WatchlistTable,
+  type WatchRow,
+} from "@/components/watchlist/WatchlistTable";
 import { Disclaimer } from "@/components/ui/Disclaimer";
-import { COMPANY_BY_ID, METRICS_BY_ID } from "@/lib/mock/companies";
+import { COMPANIES, METRICS_BY_ID } from "@/lib/mock/companies";
 import { getCloseSeries, getInstitutionalFlow } from "@/lib/mock/prices";
 import { getMonthlyRevenue } from "@/lib/mock/financials";
 import { getScore } from "@/lib/mock/scoring";
-import { formatNetLots, formatPct, formatPrice } from "@/lib/format";
 
 export const metadata: Metadata = { title: "追蹤清單" };
 
-/** 之後接上帳號系統時，這裡改為讀取使用者的追蹤設定 */
-const WATCHED = ["2330", "2454", "2382", "2308", "3034", "2412"];
-
-export default function WatchlistPage() {
-  const rows = WATCHED.map((id) => {
-    const company = COMPANY_BY_ID.get(id)!;
+/**
+ * 追蹤哪幾檔存在 localStorage，只有 client 知道；
+ * 但每一檔的欄位值不必因此搬到 client 算。
+ * 這裡先把整個收錄範圍（12 檔）算好，由 WatchlistTable 依偏好挑出要顯示的列。
+ * 12 檔的量級下，多算幾筆遠比把整個 mock 資料層打包進 client bundle 划算。
+ */
+function buildRows(): WatchRow[] {
+  return COMPANIES.map((company) => {
+    const id = company.stockId;
     const metrics = METRICS_BY_ID.get(id)!;
     const monthly = getMonthlyRevenue(id);
     const flows = getInstitutionalFlow(id, 5);
-    const foreignNet = flows.reduce((s, f) => s + f.foreign, 0);
     return {
-      company,
-      metrics,
-      latestMonth: monthly[monthly.length - 1],
-      foreignNet,
+      stockId: id,
+      companyName: company.companyName,
+      price: metrics.price,
+      changePct: metrics.changePct,
+      pe: metrics.pe,
+      roe: metrics.roe,
+      monthlyYoy: monthly[monthly.length - 1]?.yoy ?? null,
+      foreignNet: flows.reduce((s, f) => s + f.foreign, 0),
       score: getScore(id)?.total ?? 0,
+      spark: getCloseSeries(id, 60),
     };
   });
+}
 
+export default function WatchlistPage() {
   return (
     <div className="density-hi px-4 py-6 md:px-8">
       <header className="mb-8">
@@ -40,83 +49,7 @@ export default function WatchlistPage() {
         </p>
       </header>
 
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[52rem] text-xs">
-          <thead>
-            <tr className="th-sticky border-b border-border text-left text-faint">
-              <th scope="col" className="py-2 pr-3 font-medium">代號</th>
-              <th scope="col" className="py-2 pr-3 font-medium">名稱</th>
-              <th scope="col" className="py-2 pr-3 text-right font-medium">收盤</th>
-              <th scope="col" className="py-2 pr-3 text-right font-medium">漲跌幅</th>
-              <th scope="col" className="py-2 pr-3 text-right font-medium">本益比</th>
-              <th scope="col" className="py-2 pr-3 text-right font-medium">ROE</th>
-              <th scope="col" className="py-2 pr-3 text-right font-medium">最新月營收 YoY</th>
-              <th scope="col" className="py-2 pr-3 text-right font-medium">外資 5 日</th>
-              <th scope="col" className="py-2 pr-3 text-right font-medium">分數</th>
-              <th scope="col" className="py-2 pl-3 text-right font-medium">近 60 日</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border/60">
-            {rows.map(({ company, metrics, latestMonth, foreignNet, score }) => (
-              <tr
-                key={company.stockId}
-                className="h-8 transition-colors hover:bg-surface"
-              >
-                <td className="num py-1 pr-3">
-                  <Link
-                    href={`/stock/${company.stockId}`}
-                    className="text-accent hover:underline"
-                  >
-                    {company.stockId}
-                  </Link>
-                </td>
-                <td className="py-1 pr-3 text-text">{company.companyName}</td>
-                <td className="num py-1 pr-3 text-right">{formatPrice(metrics.price)}</td>
-                <td className="py-1 pr-3 text-right">
-                  <DeltaValue value={metrics.changePct} arrow />
-                </td>
-                <td className="num py-1 pr-3 text-right text-muted">
-                  {formatPrice(metrics.pe, 1)}x
-                </td>
-                <td className="num py-1 pr-3 text-right text-muted">
-                  {formatPct(metrics.roe, 1, false)}
-                </td>
-                <td className="py-1 pr-3 text-right">
-                  {latestMonth ? (
-                    <DeltaValue value={latestMonth.yoy} digits={1} />
-                  ) : (
-                    <span className="num text-faint">—</span>
-                  )}
-                </td>
-                <td className="py-1 pr-3 text-right">
-                  <span
-                    className={
-                      foreignNet > 0
-                        ? "num text-up"
-                        : foreignNet < 0
-                          ? "num text-down"
-                          : "num text-flat"
-                    }
-                  >
-                    {formatNetLots(foreignNet)}
-                  </span>
-                </td>
-                <td className="num py-1 pr-3 text-right">{score}</td>
-                <td className="py-1 pl-3">
-                  <div className="flex justify-end">
-                    <Sparkline
-                      data={getCloseSeries(company.stockId, 60)}
-                      trend={metrics.changePct}
-                      width={68}
-                      height={18}
-                    />
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <WatchlistTable rows={buildRows()} />
 
       <Disclaimer variant="inline" className="mt-6" />
     </div>

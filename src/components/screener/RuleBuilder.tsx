@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useMemo } from "react";
 import Link from "next/link";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Plus, X } from "@phosphor-icons/react/dist/ssr";
 import {
   COMPARATOR_LABELS,
@@ -11,6 +12,7 @@ import {
   type Rule,
 } from "@/lib/schema";
 import { DEFAULT_RULES, PRESETS, screen } from "@/lib/screener";
+import { RULES_PARAM, decodeRules, encodeRules } from "@/lib/rule-url";
 import { COMPANY_BY_ID } from "@/lib/mock/companies";
 import { EmptyState } from "@/components/ui/states";
 import { Disclaimer } from "@/components/ui/Disclaimer";
@@ -37,22 +39,55 @@ const RELATIVE_OK: Record<MetricKey, boolean> = {
 let idCounter = 0;
 const nextId = () => `rule-${++idCounter}`;
 
+/**
+ * 條件狀態放在網址而不是 useState。
+ *
+ * 篩選條件是這個工具的產出之一 —— 調出一組有意義的條件之後，
+ * 使用者會想把它存成書籤或貼給別人。放在 component state 裡，
+ * 重新整理就沒了，也沒有東西可以分享。
+ *
+ * 用 replace 而非 push：每改一個下拉選單就多一筆上一頁紀錄，
+ * 會讓返回鍵變得無法使用。scroll: false 是因為改條件不該把畫面捲回頂端。
+ */
 export function RuleBuilder() {
-  const [rules, setRules] = useState<Rule[]>(DEFAULT_RULES);
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  // 預設條件的 id 要和「編碼後再解碼」得到的一致（decodeRules 會依序配發
+  // u0、u1…）。否則第一次改動時每一列的 key 都會變，React 視為全新節點，
+  // 四列同時重播一次進場動畫 —— 只是改了一個下拉選單，看起來卻像整組被換掉。
+  const rules = useMemo(
+    () =>
+      decodeRules(searchParams.get(RULES_PARAM)) ??
+      DEFAULT_RULES.map((r, i) => ({ ...r, id: `u${i}` })),
+    [searchParams],
+  );
 
   const results = useMemo(() => screen(rules), [rules]);
 
+  const setRules = useCallback(
+    (next: Rule[]) => {
+      const q = encodeRules(next);
+      // 條件清空時把參數整個拿掉，而不是留一個 ?q=
+      router.replace(q ? `${pathname}?${RULES_PARAM}=${q}` : pathname, {
+        scroll: false,
+      });
+    },
+    [router, pathname],
+  );
+
   function update(id: string, patch: Partial<Rule>) {
-    setRules((rs) => rs.map((r) => (r.id === id ? { ...r, ...patch } : r)));
+    setRules(rules.map((r) => (r.id === id ? { ...r, ...patch } : r)));
   }
 
   function remove(id: string) {
-    setRules((rs) => rs.filter((r) => r.id !== id));
+    setRules(rules.filter((r) => r.id !== id));
   }
 
   function add() {
-    setRules((rs) => [
-      ...rs,
+    setRules([
+      ...rules,
       {
         id: nextId(),
         metric: "roe",
@@ -262,7 +297,7 @@ export function RuleBuilder() {
             action={
               <button
                 type="button"
-                onClick={() => setRules((rs) => rs.slice(0, -1))}
+                onClick={() => setRules(rules.slice(0, -1))}
                 className="cursor-pointer rounded border border-border-strong px-2.5 py-1 text-xs transition-transform duration-150 active:scale-[0.97]"
               >
                 移除最後一項條件
