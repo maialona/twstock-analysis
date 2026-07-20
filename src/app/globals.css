@@ -1,0 +1,191 @@
+@import "tailwindcss";
+
+/*
+  台股分析平台 — Design tokens
+  ────────────────────────────────────────────────────────────
+  重要：台股漲跌顏色與歐美相反。紅 = 漲，綠 = 跌。
+  一律使用語意 token --color-up / --color-down，
+  禁止在元件中直接寫 text-red-500 / text-green-500。
+*/
+
+@theme {
+  /* 中性基底 — zinc 系，非純黑 */
+  --color-bg: #09090b;
+  --color-surface: #131316;
+  --color-raised: #1b1b1f;
+  --color-border: #27272a;
+  --color-border-strong: #3f3f46;
+  --color-text: #fafafa;
+  --color-muted: #a1a1aa;
+  --color-faint: #71717a;
+
+  /* 單一強調色 — electric blue，僅用於互動、焦點、選取 */
+  --color-accent: #0ea5e9;
+  --color-accent-dim: #075985;
+
+  /* 漲跌 — 台股慣例 */
+  --color-up: #e5484d;
+  --color-up-dim: #3a1416;
+  --color-down: #30a46c;
+  --color-down-dim: #10231a;
+  --color-flat: #71717a;
+
+  /* 字體 — Geist 優先，中文自動 fallback 至 Noto Sans TC。
+     Geist 不含 CJK 字符集，瀏覽器會逐字 fallback，
+     因此拉丁字母/數字走 Geist、中文走 Noto，不需額外處理。 */
+  --font-sans: var(--font-geist-sans), var(--font-noto-tc), system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), var(--font-noto-tc), ui-monospace, monospace;
+
+  /* 動畫 */
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/*
+  密度分級 — 依頁面套用 class，共用同一組變數名
+  density-hi (8): Dashboard / Screener
+  density-md (7): 個股頁
+  density-lo (3): 落地頁
+*/
+.density-hi {
+  --row-h: 2rem;
+  --pad-x: 0.5rem;
+  --fs-data: 0.75rem;
+  --section-gap: 1.5rem;
+}
+
+.density-md {
+  --row-h: 2.5rem;
+  --pad-x: 0.75rem;
+  --fs-data: 0.8125rem;
+  --section-gap: 2.5rem;
+}
+
+.density-lo {
+  --row-h: auto;
+  --pad-x: 2rem;
+  --fs-data: 1rem;
+  --section-gap: 7rem;
+}
+
+@layer base {
+  html {
+    background: var(--color-bg);
+    color: var(--color-text);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  body {
+    background: var(--color-bg);
+    color: var(--color-text);
+  }
+
+  /* 所有數值一律等寬對齊 */
+  .num {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.01em;
+  }
+
+  ::selection {
+    background: var(--color-accent-dim);
+    color: var(--color-text);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+
+  /* 細捲軸，避免高密度表格中捲軸搶視覺 */
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-border-strong);
+    border-radius: 999px;
+    border: 3px solid var(--color-bg);
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--color-faint);
+  }
+}
+
+@layer utilities {
+  /* 高密度表格的 sticky 表頭 */
+  .th-sticky {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: var(--color-bg);
+  }
+
+  .shimmer {
+    background: linear-gradient(
+      90deg,
+      var(--color-surface) 0%,
+      var(--color-raised) 50%,
+      var(--color-surface) 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.6s ease-in-out infinite;
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* 列表項目進場。
+   只動 transform，不動 opacity —— 這是刻意的。
+   進場動畫若從 opacity: 0 開始，一旦動畫沒有推進
+   （分頁在背景、rAF 被節流、動畫時間軸凍結），內容就會永久看不見。
+   對一個以「數字必須看得到」為前提的工具來說，這個失敗模式不能接受。
+   只位移不淡入，最差情況也只是少了一段動畫，資料照樣顯示。 */
+@keyframes row-in {
+  from {
+    transform: translateY(-4px);
+  }
+  to {
+    transform: none;
+  }
+}
+
+.row-in {
+  animation: row-in 0.24s var(--ease-out-expo);
+}
+
+@keyframes pulse-dot {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.45;
+    transform: scale(0.82);
+  }
+}
+
+.pulse-dot {
+  animation: pulse-dot 2.4s var(--ease-out-expo) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
