@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { CHART_COLORS, deltaBg, deltaClass, formatNetLots, formatPct, formatTWD, formatVolume } from "./format";
+import { CHART_NEUTRALS, DEFAULT_DELTA } from "./theme/delta-colors";
 
 /**
  * 這支測試存在的理由只有一個：台股紅漲綠跌寫反了，畫面看起來完全正常，
@@ -53,13 +54,29 @@ describe("up/down token 的實際色碼", () => {
     expect(isReddish(tokenValue("down"))).toBe(false);
   });
 
-  it("CHART_COLORS 與 globals.css 沒有漂移", () => {
-    // 圖表庫吃 hex、UI 吃 CSS 變數，兩份定義必須一致，
-    // 否則會出現「表格紅、K 線綠」這種只有肉眼抓得到的錯位。
-    expect(CHART_COLORS.up).toBe(tokenValue("up"));
-    expect(CHART_COLORS.down).toBe(tokenValue("down"));
-    expect(CHART_COLORS.flat).toBe(tokenValue("flat"));
-    expect(CHART_COLORS.accent).toBe(tokenValue("accent"));
+  it("CHART_NEUTRALS 與 globals.css 沒有漂移", () => {
+    // canvas 圖表吃不下 var()，只能複製一份色碼。
+    // 這份副本一旦與 CSS 不同步，K 線圖的格線就會和表格框線對不上。
+    expect(CHART_NEUTRALS.flat).toBe(tokenValue("flat"));
+    expect(CHART_NEUTRALS.accent).toBe(tokenValue("accent"));
+    expect(CHART_NEUTRALS.border).toBe(tokenValue("border"));
+    expect(CHART_NEUTRALS.faint).toBe(tokenValue("faint"));
+    expect(CHART_NEUTRALS.muted).toBe(tokenValue("muted"));
+  });
+
+  it("DEFAULT_DELTA 與 globals.css 的預設沒有漂移", () => {
+    // 漲跌色現在可由使用者自訂，CSS 是唯一事實來源。
+    // 但 delta-colors.ts 為了「回復預設」與 SSR fallback 另存了一份色碼 ——
+    // 這份副本一旦與 globals.css 不一致，重設按鈕就會跳成另一個顏色。
+    expect(DEFAULT_DELTA.up).toBe(tokenValue("up"));
+    expect(DEFAULT_DELTA.down).toBe(tokenValue("down"));
+  });
+
+  it("CHART_COLORS 指向 CSS 變數而非寫死色碼", () => {
+    // 寫死色碼會讓 SVG 圖表不跟著使用者偏好走，
+    // 造成「表格紅、走勢圖綠」這種只有肉眼抓得到的錯位。
+    expect(CHART_COLORS.up).toBe("var(--color-up)");
+    expect(CHART_COLORS.down).toBe("var(--color-down)");
   });
 });
 

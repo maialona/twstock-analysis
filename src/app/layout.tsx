@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono, Noto_Sans_TC } from "next/font/google";
+import { APPLY_SCRIPT } from "@/lib/theme/delta-colors";
 import "./globals.css";
 
 /**
@@ -43,6 +44,15 @@ export default function RootLayout({
       lang="zh-Hant-TW"
       className={`${geistSans.variable} ${geistMono.variable} ${notoTC.variable} h-full antialiased`}
     >
+      <head>
+        {/*
+          在任何繪製之前套用使用者的漲跌配色。
+          若改成等 hydration 後才套用，使用者會先看到一瞬間的預設配色 ——
+          在這個介面裡那代表「短暫顯示了相反的漲跌資訊」，不只是樣式閃爍。
+          內容為本檔案內建的常數字串，不含任何外部或使用者輸入。
+        */}
+        <script dangerouslySetInnerHTML={{ __html: APPLY_SCRIPT }} />
+      </head>
       <body className="flex min-h-full flex-col bg-bg text-text">
         {children}
       </body>

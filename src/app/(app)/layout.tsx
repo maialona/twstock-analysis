@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { BrandMark, Nav } from "@/components/shell/Nav";
 import { StockSearch } from "@/components/shell/StockSearch";
+import { DeltaColorPicker } from "@/components/theme/DeltaColorPicker";
 import { Disclaimer } from "@/components/ui/Disclaimer";
 import { LATEST_DATE } from "@/lib/mock/prices";
 
@@ -36,8 +37,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <div className="md:hidden">
             <BrandMark />
           </div>
-          <div className="ml-auto">
+          <div className="ml-auto flex items-center gap-2">
             <StockSearch />
+            <DeltaColorPicker />
           </div>
         </header>
 

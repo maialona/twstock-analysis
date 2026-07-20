@@ -23,12 +23,17 @@
   --color-accent: #0ea5e9;
   --color-accent-dim: #075985;
 
-  /* 漲跌 — 台股慣例 */
+  /* 漲跌 — 預設台股慣例（紅漲綠跌）。
+     這兩個值可被使用者偏好覆寫：<html> 上的 inline style 會蓋掉這裡的預設。
+     token 名稱是語意的（up / down），不是顏色的，所以換值不需要改任何使用點。
+     偏好設定見 src/lib/theme/delta-colors.ts。 */
   --color-up: #e5484d;
-  --color-up-dim: #3a1416;
   --color-down: #30a46c;
-  --color-down-dim: #10231a;
   --color-flat: #71717a;
+
+  /* dim 變體由主色推導，不寫死 —— 使用者換色後才會跟著走。 */
+  --color-up-dim: color-mix(in oklab, var(--color-up) 22%, var(--color-bg));
+  --color-down-dim: color-mix(in oklab, var(--color-down) 22%, var(--color-bg));
 
   /* 字體 — Geist 優先，中文自動 fallback 至 Noto Sans TC。
      Geist 不含 CJK 字符集，瀏覽器會逐字 fallback，

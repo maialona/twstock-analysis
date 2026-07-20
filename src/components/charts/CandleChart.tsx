@@ -10,13 +10,15 @@ import {
 } from "lightweight-charts";
 import type { DailyPrice } from "@/lib/schema";
 import { Skeleton } from "@/components/ui/states";
-import { CHART_COLORS, cn } from "@/lib/format";
+import { cn } from "@/lib/format";
+import { useChartColors } from "./useChartColors";
 
 /**
  * K 線圖。lightweight-charts v5 API：chart.addSeries(SeriesDefinition, options)。
  *
- * 顏色遵守台股慣例 — upColor 為紅、downColor 為綠。
- * 這與函式庫預設（西方慣例）相反，必須明確覆寫。
+ * 顏色一律取自 CSS 變數（透過 useChartColors 解析成色碼）——
+ * 函式庫預設是西方慣例的綠漲紅跌，必須明確覆寫；
+ * 而使用者自訂配色後，這裡也要跟著重建，否則 K 線會和表格對不起來。
  */
 
 /** 骨架柱高，固定值以確保 SSR 與 client 一致 */
@@ -46,6 +48,7 @@ export function CandleChart({ data, height = 380, className }: Props) {
   // 這是真正有等待的地方（canvas 建立 + 資料載入），
   // 不是用 route-level loading.tsx 假裝有非同步。
   const [ready, setReady] = useState(false);
+  const c = useChartColors();
 
   useEffect(() => {
     const el = containerRef.current;
@@ -55,39 +58,39 @@ export function CandleChart({ data, height = 380, className }: Props) {
       height,
       layout: {
         background: { color: "transparent" },
-        textColor: CHART_COLORS.text,
+        textColor: c.muted,
         fontFamily: "var(--font-geist-mono), monospace",
         fontSize: 11,
         attributionLogo: false,
       },
       grid: {
-        vertLines: { color: CHART_COLORS.grid },
-        horzLines: { color: CHART_COLORS.grid },
+        vertLines: { color: c.border },
+        horzLines: { color: c.border },
       },
       rightPriceScale: {
-        borderColor: CHART_COLORS.grid,
+        borderColor: c.border,
         scaleMargins: { top: 0.08, bottom: 0.28 },
       },
       timeScale: {
-        borderColor: CHART_COLORS.grid,
+        borderColor: c.border,
         rightOffset: 4,
       },
       crosshair: {
-        vertLine: { color: CHART_COLORS.axis, labelBackgroundColor: "#27272a" },
-        horzLine: { color: CHART_COLORS.axis, labelBackgroundColor: "#27272a" },
+        vertLine: { color: c.faint, labelBackgroundColor: c.border },
+        horzLine: { color: c.faint, labelBackgroundColor: c.border },
       },
       handleScale: { axisPressedMouseMove: false },
     });
     chartRef.current = chart;
 
-    // 台股：紅漲綠跌
+    // 覆寫函式庫預設的西方慣例配色，改用使用者偏好（預設為台股紅漲綠跌）
     const candles = chart.addSeries(CandlestickSeries, {
-      upColor: CHART_COLORS.up,
-      downColor: CHART_COLORS.down,
-      borderUpColor: CHART_COLORS.up,
-      borderDownColor: CHART_COLORS.down,
-      wickUpColor: CHART_COLORS.up,
-      wickDownColor: CHART_COLORS.down,
+      upColor: c.up,
+      downColor: c.down,
+      borderUpColor: c.up,
+      borderDownColor: c.down,
+      wickUpColor: c.up,
+      wickDownColor: c.down,
     });
 
     const volume = chart.addSeries(HistogramSeries, {
@@ -116,7 +119,7 @@ export function CandleChart({ data, height = 380, className }: Props) {
       slice.map((d) => ({
         time: toTime(d.date),
         value: d.volume,
-        color: d.close >= d.open ? `${CHART_COLORS.up}44` : `${CHART_COLORS.down}44`,
+        color: d.close >= d.open ? `${c.up}44` : `${c.down}44`,
       })),
     );
 
@@ -136,7 +139,9 @@ export function CandleChart({ data, height = 380, className }: Props) {
       chartRef.current = null;
       setReady(false);
     };
-  }, [data, height, range]);
+    // c 必須在依賴中：canvas 已繪製的像素不會因 CSS 變數改變而更新，
+    // 使用者換配色時得整張重建。
+  }, [data, height, range, c]);
 
   return (
     <div className={cn("w-full", className)}>

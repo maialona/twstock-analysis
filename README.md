@@ -45,9 +45,17 @@ Next.js 16（App Router）· React 19 · TypeScript · Tailwind v4
 
 ## 兩個實作上的重點
 
-**台股漲跌顏色與歐美相反 —— 紅漲綠跌。**
+**台股漲跌顏色與歐美相反 —— 紅漲綠跌，且可由使用者自訂。**
 所有漲跌配色必須經過 `deltaClass()`（`src/lib/format.ts`），
 不要在元件裡直接寫 `text-red-500`。圖表用 `CHART_COLORS`。
+
+自訂配色只換 `--color-up` / `--color-down` 兩個 CSS 變數的值，
+語意 token 名稱不動 —— 因此全站 80 幾個 `text-up` / `bg-down`
+使用點都不需要修改。偏好存在 localStorage，並由 `layout.tsx` 中的
+阻塞腳本在繪製前套用（若等 hydration 才套，會有一瞬間顯示相反的漲跌資訊）。
+
+例外是 canvas 繪製的 K 線圖：`var()` 在 canvas 中無效，
+必須用 `useChartColors()` 取實際色碼，見 `src/components/charts/useChartColors.ts`。
 
 **Tailwind v4 的 CSS 變數語法。**
 色彩 token 定義在 `globals.css` 的 `@theme`，會自動產生 `text-up`、`bg-surface`
@@ -59,6 +67,10 @@ Next.js 16（App Router）· React 19 · TypeScript · Tailwind v4
 介面未經實際視覺確認（開發時的預覽分頁無法算繪、截圖不可用），
 所有驗證都是透過 computed style 與 DOM 斷言完成。
 版面、間距與圖表可讀性建議先 `npm run dev` 目視檢查。
+
+尤其是**圖表在自訂配色下的呈現**：K 線（canvas）與 Recharts 的長條
+都要等 requestAnimationFrame 才會繪製，在該環境中完全不會產生像素，
+因此圖表是否跟著換色只由程式碼路徑保證，未經實際觀察。
 
 ## 授權
 

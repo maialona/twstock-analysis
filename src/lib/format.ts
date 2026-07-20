@@ -25,15 +25,22 @@ export function deltaBg(n: number | null | undefined): string {
   return "bg-flat";
 }
 
-/** 圖表用的原始色碼（Recharts / lightweight-charts 需要 hex 而非 class） */
+/**
+ * 圖表用色。這裡放的是 CSS 變數參照而非色碼 —— SVG 的 fill / stroke
+ * 屬性吃得下 var()，所以漲跌色一旦被使用者改掉，Recharts 與 Sparkline
+ * 會自動跟著變，不需要重新渲染，也能在 server component 中使用。
+ *
+ * 例外：canvas 繪製的圖表（lightweight-charts）只接受實際色碼，
+ * 必須改用 useChartColors()，見 components/charts/useChartColors.ts。
+ */
 export const CHART_COLORS = {
-  up: "#e5484d",
-  down: "#30a46c",
-  flat: "#71717a",
-  accent: "#0ea5e9",
-  grid: "#27272a",
-  axis: "#71717a",
-  text: "#a1a1aa",
+  up: "var(--color-up)",
+  down: "var(--color-down)",
+  flat: "var(--color-flat)",
+  accent: "var(--color-accent)",
+  grid: "var(--color-border)",
+  axis: "var(--color-faint)",
+  text: "var(--color-muted)",
 } as const;
 
 const nf = (min: number, max: number) =>
