@@ -13,7 +13,15 @@ import {
   MARKET_TURNOVER,
   getCloseSeries,
 } from "@/lib/mock/prices";
-import { cn, formatInt, formatPct, formatPrice, formatTWD } from "@/lib/format";
+import {
+  cn,
+  deltaBg,
+  deltaClass,
+  formatInt,
+  formatPct,
+  formatPrice,
+  formatTWD,
+} from "@/lib/format";
 
 export const metadata: Metadata = { title: "市場概況" };
 
@@ -125,10 +133,10 @@ export default function DashboardPage() {
                     <div
                       className={cn(
                         "absolute inset-y-0 rounded-sm",
-                        inst.net > 0 ? "bg-up" : "bg-down",
+                        deltaBg(inst.net),
                       )}
                       style={
-                        inst.net > 0
+                        inst.net >= 0
                           ? { left: "50%", width: `${pct / 2}%` }
                           : { right: "50%", width: `${pct / 2}%` }
                       }
@@ -137,7 +145,7 @@ export default function DashboardPage() {
                   <span
                     className={cn(
                       "num w-20 shrink-0 text-right text-xs",
-                      inst.net > 0 ? "text-up" : "text-down",
+                      deltaClass(inst.net),
                     )}
                   >
                     {formatTWD(inst.net)}

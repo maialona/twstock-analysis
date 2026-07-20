@@ -24,6 +24,11 @@ const DATES = tradingDates(TRADING_DAYS, LATEST_DATE);
 /**
  * 以幾何布朗運動反推 250 日 OHLC，讓最後一根收盤價
  * 精確等於 companies.ts 中的現價 — 避免圖表與指標對不上。
+ *
+ * 「對不上」不只是現價：最後一根的漲跌幅也必須等於 metrics.changePct。
+ * 表頭、儀表板、追蹤清單顯示的都是 changePct，若 K 線最後一根
+ * 自己走自己的，同一頁就會出現「▲ +1.36%」配一根綠色收黑的 K 棒。
+ * 因此縮放基準取「前一日收盤」，再把最後一根釘在現價上。
  */
 function buildSeries(stockId: string): DailyPrice[] {
   const m = METRICS_BY_ID.get(stockId);
@@ -40,12 +45,16 @@ function buildSeries(stockId: string): DailyPrice[] {
     rel.push(rel[i - 1] * Math.exp(shock));
   }
 
-  const scale = m.price / rel[rel.length - 1];
+  // 先讓「前一日」落在 現價 / (1 + 漲跌幅)，再把最後一根釘死在現價，
+  // 如此最後一根的漲跌幅正好等於 m.changePct。
+  const prevClose = m.price / (1 + m.changePct / 100);
+  const scale = prevClose / rel[rel.length - 2];
   const closes = rel.map((r) => r * scale);
+  closes[closes.length - 1] = m.price;
 
   return DATES.map((date, i) => {
     const close = closes[i];
-    const prev = i === 0 ? close / (1 + m.changePct / 100) : closes[i - 1];
+    const prev = i === 0 ? close : closes[i - 1];
 
     const open = i === 0 ? prev : prev * (1 + gaussian(rand) * 0.004);
     const bodyHi = Math.max(open, close);
@@ -59,13 +68,18 @@ function buildSeries(stockId: string): DailyPrice[] {
     const volume = Math.round(baseLots * (0.6 + swing * 26 + rand() * 0.8)) * 1000;
 
     const digits = close >= 100 ? 1 : 2;
+    // 最後一根不套用位數四捨五入 —— 它必須逐字等於 metrics.price，
+    // 否則表頭（讀 metrics）與 K 線最後一根會差一個進位，
+    // 例如 0050 標價 208.35、圖上卻標 208.4。
+    const isLast = i === DATES.length - 1;
+    const closeOut = isLast ? m.price : round(close, digits);
     return {
       date,
       stockId,
       open: round(open, digits),
-      high: round(high, digits),
-      low: round(low, digits),
-      close: round(close, digits),
+      high: Math.max(round(high, digits), closeOut),
+      low: Math.min(round(low, digits), closeOut),
+      close: closeOut,
       volume,
       turnover: Math.round(volume * close),
     };

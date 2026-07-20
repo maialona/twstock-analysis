@@ -39,10 +39,19 @@ export const metadata: Metadata = {
 export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
+  /*
+    <html> 上的 suppressHydrationWarning 是必要的，不是偷懶。
+    下方 <head> 的阻塞腳本會在 hydration 之前，把使用者偏好的漲跌色
+    以 inline style 寫進這個 <html>。伺服器算繪的 HTML 沒有該 style 屬性、
+    client 有 —— React 會判定為 hydration mismatch 並在 console 報錯。
+    這個差異是這個設計刻意換來的（見下方說明），因此明確告訴 React
+    不要比對本節點的屬性。只影響 <html> 自身，不影響子樹。
+  */
   return (
     <html
       lang="zh-Hant-TW"
       className={`${geistSans.variable} ${geistMono.variable} ${notoTC.variable} h-full antialiased`}
+      suppressHydrationWarning
     >
       <head>
         {/*
