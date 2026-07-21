@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { CandleChart } from "@/components/charts/CandleChart";
 import {
+  CashFlowChart,
   EpsChart,
   MarginTrendChart,
   MonthlyRevenueChart,
@@ -19,6 +20,7 @@ import {
   getDerivedSeries,
   getDividends,
   getMonthlyRevenue,
+  getQuarterly,
 } from "@/lib/data/financials";
 import { getScore } from "@/lib/data/scoring";
 import { getAnalysis, hasFullAnalysis } from "@/lib/data/analysis";
@@ -53,6 +55,14 @@ export default async function StockPage({
   const derived = getDerivedSeries(id);
   const monthly = getMonthlyRevenue(id);
   const dividends = getDividends(id);
+  // 現金流圖：由真實逐季現金流量表推導（單季營業現金流、資本支出、自由現金流）。
+  // 金控／ETF 沒有逐季資料，quarterly 為空，整段不顯示。
+  const cashflow = getQuarterly(id).map((q) => ({
+    label: `${String(q.year).slice(2)}Q${q.quarter}`,
+    ocf: q.operatingCashFlow,
+    capex: q.capex,
+    fcf: q.operatingCashFlow - q.capex,
+  }));
   const score = getScore(id);
   const analysis = getAnalysis(id);
   const isEtf = company.market === "ETF";
@@ -255,6 +265,21 @@ export default async function StockPage({
                 </h2>
                 <EpsChart data={derived} />
               </section>
+
+              {cashflow.length > 0 && (
+                <section
+                  aria-labelledby="cf-h"
+                  className="border-t border-border pt-4 lg:col-span-2"
+                >
+                  <h2
+                    id="cf-h"
+                    className="mb-3 text-[0.6875rem] uppercase tracking-[0.12em] text-faint"
+                  >
+                    季度現金流（億元，營業現金流／資本支出）
+                  </h2>
+                  <CashFlowChart data={cashflow} />
+                </section>
+              )}
             </>
           )}
 

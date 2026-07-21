@@ -5,6 +5,7 @@ import {
   InstitutionalFlowSchema,
   MetricsSchema,
   MonthlyRevenueSchema,
+  QuarterlyFinancialSchema,
 } from "@/lib/schema";
 
 import companiesJson from "../../../data/companies.json";
@@ -14,6 +15,7 @@ import pricesJson from "../../../data/prices.json";
 import revenueJson from "../../../data/monthly-revenue.json";
 import institutionalJson from "../../../data/institutional.json";
 import financialsJson from "../../../data/financials.json";
+import quarterlyJson from "../../../data/quarterly.json";
 import metaJson from "../../../data/meta.json";
 
 /**
@@ -115,6 +117,13 @@ export const FINANCIALS = parse(
   z.record(z.string(), FundamentalsSchema),
   financialsJson,
   "financials.json",
+);
+
+/** 逐季財報歷史（僅一般業有；金控／ETF 不在其中，取用端自然拿到空） */
+export const QUARTERLY = parse(
+  z.record(z.string(), z.array(QuarterlyFinancialSchema)),
+  quarterlyJson,
+  "quarterly.json",
 );
 
 /** 基準交易日 —— 全站顯示「哪一天收盤」的唯一來源 */
