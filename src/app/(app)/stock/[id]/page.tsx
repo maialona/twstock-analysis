@@ -55,14 +55,18 @@ export default async function StockPage({
   const derived = getDerivedSeries(id);
   const monthly = getMonthlyRevenue(id);
   const dividends = getDividends(id);
-  // 現金流圖：由真實逐季現金流量表推導（單季營業現金流、資本支出、自由現金流）。
-  // 金控／ETF 沒有逐季資料，quarterly 為空，整段不顯示。
-  const cashflow = getQuarterly(id).map((q) => ({
-    label: `${String(q.year).slice(2)}Q${q.quarter}`,
-    ocf: q.operatingCashFlow,
-    capex: q.capex,
-    fcf: q.operatingCashFlow - q.capex,
-  }));
+  // 利潤率趨勢只有一般業有（金控沒有營收，margin 為 null）；EPS 趨勢兩者都有。
+  const hasMargins = derived.some((d) => d.grossMargin !== null);
+  // 現金流圖：由真實逐季現金流量表推導。金控不畫（銀行現金流敘事不同）、ETF 無逐季，
+  // 皆為 null，過濾後自然不顯示。
+  const cashflow = getQuarterly(id)
+    .filter((q) => q.operatingCashFlow !== null && q.capex !== null)
+    .map((q) => ({
+      label: `${String(q.year).slice(2)}Q${q.quarter}`,
+      ocf: q.operatingCashFlow as number,
+      capex: q.capex as number,
+      fcf: (q.operatingCashFlow as number) - (q.capex as number),
+    }));
   const score = getScore(id);
   const analysis = getAnalysis(id);
   const isEtf = company.market === "ETF";
@@ -231,9 +235,11 @@ export default async function StockPage({
       {/* ── 財報圖表 ─────────────────────────────────── */}
       {/*
         三塊的資料可得性不同，分別開關，不共用一個閘：
-        - 利潤率／EPS 趨勢：需要損益表結構，金融股（利息收入型）沒有，derived 為空
-        - 月營收：一般業與金融股都有公告，ETF 沒有
-        所以金融股會顯示月營收、但不顯示利潤率趨勢，這是正確的，
+        - 利潤率趨勢：需要營收與利潤結構，金控（利息收入型）沒有，僅一般業顯示
+        - EPS 趨勢：金控與一般業都有逐季 EPS，皆顯示
+        - 現金流：僅一般業（金控銀行的現金流敘事不同，不畫）
+        - 月營收：一般業與金控都有公告，ETF 沒有
+        所以金控會顯示 EPS 趨勢與月營收、但不顯示利潤率與現金流，這是正確的，
         不能因為沒有利潤率就把它整段當成「ETF 無財報」。
       */}
       {isEtf ? (
@@ -244,43 +250,43 @@ export default async function StockPage({
         />
       ) : (
         <div className="mb-10 grid gap-x-10 gap-y-8 lg:grid-cols-2">
+          {hasMargins && (
+            <section aria-labelledby="margin-h" className="border-t border-border pt-4">
+              <h2
+                id="margin-h"
+                className="mb-3 text-[0.6875rem] uppercase tracking-[0.12em] text-faint"
+              >
+                利潤率與 ROE 趨勢
+              </h2>
+              <MarginTrendChart data={derived} />
+            </section>
+          )}
+
           {derived.length > 0 && (
-            <>
-              <section aria-labelledby="margin-h" className="border-t border-border pt-4">
-                <h2
-                  id="margin-h"
-                  className="mb-3 text-[0.6875rem] uppercase tracking-[0.12em] text-faint"
-                >
-                  利潤率與 ROE 趨勢
-                </h2>
-                <MarginTrendChart data={derived} />
-              </section>
+            <section aria-labelledby="eps-h" className="border-t border-border pt-4">
+              <h2
+                id="eps-h"
+                className="mb-3 text-[0.6875rem] uppercase tracking-[0.12em] text-faint"
+              >
+                季度 EPS
+              </h2>
+              <EpsChart data={derived} />
+            </section>
+          )}
 
-              <section aria-labelledby="eps-h" className="border-t border-border pt-4">
-                <h2
-                  id="eps-h"
-                  className="mb-3 text-[0.6875rem] uppercase tracking-[0.12em] text-faint"
-                >
-                  季度 EPS
-                </h2>
-                <EpsChart data={derived} />
-              </section>
-
-              {cashflow.length > 0 && (
-                <section
-                  aria-labelledby="cf-h"
-                  className="border-t border-border pt-4 lg:col-span-2"
-                >
-                  <h2
-                    id="cf-h"
-                    className="mb-3 text-[0.6875rem] uppercase tracking-[0.12em] text-faint"
-                  >
-                    季度現金流（億元，營業現金流／資本支出）
-                  </h2>
-                  <CashFlowChart data={cashflow} />
-                </section>
-              )}
-            </>
+          {cashflow.length > 0 && (
+            <section
+              aria-labelledby="cf-h"
+              className="border-t border-border pt-4 lg:col-span-2"
+            >
+              <h2
+                id="cf-h"
+                className="mb-3 text-[0.6875rem] uppercase tracking-[0.12em] text-faint"
+              >
+                季度現金流（億元，營業現金流／資本支出）
+              </h2>
+              <CashFlowChart data={cashflow} />
+            </section>
           )}
 
           {monthly.length > 0 && (

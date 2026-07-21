@@ -2,6 +2,7 @@ import { z } from "zod";
 import {
   CompanySchema,
   DailyPriceSchema,
+  DividendSchema,
   InstitutionalFlowSchema,
   MetricsSchema,
   MonthlyRevenueSchema,
@@ -16,6 +17,7 @@ import revenueJson from "../../../data/monthly-revenue.json";
 import institutionalJson from "../../../data/institutional.json";
 import financialsJson from "../../../data/financials.json";
 import quarterlyJson from "../../../data/quarterly.json";
+import dividendsJson from "../../../data/dividends.json";
 import metaJson from "../../../data/meta.json";
 
 /**
@@ -119,11 +121,18 @@ export const FINANCIALS = parse(
   "financials.json",
 );
 
-/** 逐季財報歷史（僅一般業有；金控／ETF 不在其中，取用端自然拿到空） */
+/** 逐季財報歷史（一般業與金控有，欄位缺項為 null；ETF 不在其中） */
 export const QUARTERLY = parse(
   z.record(z.string(), z.array(QuarterlyFinancialSchema)),
   quarterlyJson,
   "quarterly.json",
+);
+
+/** 歷年股利（非 ETF 都有；ETF 不在其中，取用端自然拿到空） */
+export const DIVIDENDS = parse(
+  z.record(z.string(), z.array(DividendSchema)),
+  dividendsJson,
+  "dividends.json",
 );
 
 /** 基準交易日 —— 全站顯示「哪一天收盤」的唯一來源 */

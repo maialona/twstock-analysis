@@ -34,20 +34,24 @@ export const DailyPriceSchema = z.object({
 export type DailyPrice = z.infer<typeof DailyPriceSchema>;
 
 /* ── quarterly_financial ─────────────────────────────── */
+/**
+ * 金控合併損益表沒有營業收入與利潤結構，也不畫現金流 —— 這些欄位對金控為 null。
+ * 損益核心（淨利、EPS）與資產負債（權益、資產、負債）金控與一般業都有。
+ */
 export const QuarterlyFinancialSchema = z.object({
   stockId: z.string(),
   year: z.number().int(),
   quarter: z.number().int().min(1).max(4),
-  revenue: z.number(),
-  grossProfit: z.number(),
-  operatingIncome: z.number(),
+  revenue: z.number().nullable(),
+  grossProfit: z.number().nullable(),
+  operatingIncome: z.number().nullable(),
   netIncome: z.number(),
   eps: z.number(),
   equity: z.number(),
   asset: z.number(),
   liability: z.number(),
-  operatingCashFlow: z.number(),
-  capex: z.number(),
+  operatingCashFlow: z.number().nullable(),
+  capex: z.number().nullable(),
 });
 export type QuarterlyFinancial = z.infer<typeof QuarterlyFinancialSchema>;
 
