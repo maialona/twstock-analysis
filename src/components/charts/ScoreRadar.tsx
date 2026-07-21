@@ -1,6 +1,6 @@
 import type { AiDimension } from "@/lib/schema";
-import { AI_DIMENSION_LABELS } from "@/lib/mock/analysis";
-import { CHART_COLORS } from "@/lib/format";
+import { AI_DIMENSION_LABELS } from "@/lib/data/analysis";
+import { CHART_COLORS, cn } from "@/lib/format";
 
 /**
  * 五軸雷達圖，取代 PRD 中的 ★★★★★ 星號呈現。
@@ -125,16 +125,17 @@ export function ScoreRadar({ dimensions, size = 220 }: Props) {
   );
 }
 
-/** 分數條，用於 Scoring Engine 的權重明細 */
+/** 分數條，用於 Scoring Engine 的權重明細。value 為 null 代表該分項目前無真實資料 */
 export function ScoreBar({
   label,
   value,
   weight,
 }: {
   label: string;
-  value: number;
+  value: number | null;
   weight: number;
 }) {
+  const unavailable = value === null;
   return (
     <div className="flex items-center gap-3 py-1.5 text-xs">
       <span className="w-20 shrink-0 text-muted">{label}</span>
@@ -142,13 +143,20 @@ export function ScoreBar({
         {Math.round(weight * 100)}%
       </span>
       <div className="h-1 flex-1 overflow-hidden rounded-full bg-raised">
-        <div
-          className="h-full rounded-full bg-accent transition-[width] duration-500"
-          style={{ width: `${value}%` }}
-        />
+        {!unavailable && (
+          <div
+            className="h-full rounded-full bg-accent transition-[width] duration-500"
+            style={{ width: `${value}%` }}
+          />
+        )}
       </div>
-      <span className="num w-9 shrink-0 text-right text-text">
-        {value.toFixed(0)}
+      <span
+        className={cn(
+          "num w-9 shrink-0 text-right",
+          unavailable ? "text-faint" : "text-text",
+        )}
+      >
+        {unavailable ? "—" : value.toFixed(0)}
       </span>
     </div>
   );

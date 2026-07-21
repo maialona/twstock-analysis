@@ -1,4 +1,4 @@
-import { COMPANY_BY_ID } from "@/lib/mock/companies";
+import { COMPANY_BY_ID } from "@/lib/data/companies";
 
 export const STORAGE_KEY = "twstock.watchlist";
 

@@ -13,7 +13,7 @@ import {
 } from "@/lib/schema";
 import { DEFAULT_RULES, PRESETS, screen } from "@/lib/screener";
 import { RULES_PARAM, decodeRules, encodeRules } from "@/lib/rule-url";
-import { COMPANY_BY_ID } from "@/lib/mock/companies";
+import { COMPANY_BY_ID } from "@/lib/data/companies";
 import { EmptyState } from "@/components/ui/states";
 import { Disclaimer } from "@/components/ui/Disclaimer";
 import { cn, formatPrice } from "@/lib/format";

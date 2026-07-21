@@ -13,7 +13,7 @@ import {
   YAxis,
 } from "recharts";
 import type { MonthlyRevenue } from "@/lib/schema";
-import type { DerivedPoint } from "@/lib/mock/financials";
+import type { DerivedPoint } from "@/lib/data/financials";
 import { CHART_COLORS, formatTWD } from "@/lib/format";
 
 const AXIS = {

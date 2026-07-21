@@ -3,7 +3,7 @@
 import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { MagnifyingGlass } from "@phosphor-icons/react/dist/ssr";
-import { COMPANIES } from "@/lib/mock/companies";
+import { COMPANIES } from "@/lib/data/companies";
 import { cn } from "@/lib/format";
 
 /**

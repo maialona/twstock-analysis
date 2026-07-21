@@ -4,10 +4,10 @@ import {
   type WatchRow,
 } from "@/components/watchlist/WatchlistTable";
 import { Disclaimer } from "@/components/ui/Disclaimer";
-import { COMPANIES, METRICS_BY_ID } from "@/lib/mock/companies";
-import { getCloseSeries, getInstitutionalFlow } from "@/lib/mock/prices";
-import { getMonthlyRevenue } from "@/lib/mock/financials";
-import { getScore } from "@/lib/mock/scoring";
+import { COMPANIES, METRICS_BY_ID } from "@/lib/data/companies";
+import { getCloseSeries, getInstitutionalFlow } from "@/lib/data/prices";
+import { getMonthlyRevenue } from "@/lib/data/financials";
+import { getScore } from "@/lib/data/scoring";
 
 export const metadata: Metadata = { title: "追蹤清單" };
 

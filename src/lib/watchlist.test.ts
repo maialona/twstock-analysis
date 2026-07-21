@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { COMPANY_BY_ID } from "./mock/companies";
+import { COMPANY_BY_ID } from "./data/companies";
 import { DEFAULT_WATCHLIST, parseStored, serialize } from "./watchlist";
 
 /**

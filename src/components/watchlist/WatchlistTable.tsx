@@ -9,6 +9,7 @@ import { useWatchlist } from "@/lib/useWatchlist";
 import {
   cn,
   deltaClass,
+  formatMultiple,
   formatNetLots,
   formatPct,
   formatPrice,
@@ -17,15 +18,16 @@ import {
 /**
  * 一列所需的資料。由 server component 先算好整個收錄範圍再傳進來 ——
  * 追蹤的是哪幾檔存在 localStorage，只有 client 知道，
- * 但「每一檔長什麼樣」不必因此把整個 mock 資料層打包進 client bundle。
+ * 但「每一檔長什麼樣」不必因此把整個資料層打包進 client bundle。
  */
 export type WatchRow = {
   stockId: string;
   companyName: string;
   price: number;
   changePct: number;
-  pe: number;
-  roe: number;
+  // 真實資料有缺值：虧損股沒有本益比，ETF 沒有 ROE
+  pe: number | null;
+  roe: number | null;
   monthlyYoy: number | null;
   foreignNet: number;
   score: number;
@@ -96,7 +98,7 @@ export function WatchlistTable({ rows }: { rows: WatchRow[] }) {
                 <DeltaValue value={r.changePct} arrow />
               </td>
               <td className="num py-1 pr-3 text-right text-muted">
-                {formatPrice(r.pe, 1)}x
+                {formatMultiple(r.pe, 1)}
               </td>
               <td className="num py-1 pr-3 text-right text-muted">
                 {formatPct(r.roe, 1, false)}

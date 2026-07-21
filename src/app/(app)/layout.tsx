@@ -3,7 +3,7 @@ import { BrandMark, Nav } from "@/components/shell/Nav";
 import { StockSearch } from "@/components/shell/StockSearch";
 import { DeltaColorPicker } from "@/components/theme/DeltaColorPicker";
 import { Disclaimer } from "@/components/ui/Disclaimer";
-import { LATEST_DATE } from "@/lib/mock/prices";
+import { LATEST_DATE } from "@/lib/data/prices";
 
 /**
  * App shell。側欄在 md 以上固定，行動版收合為頂部橫向導覽。

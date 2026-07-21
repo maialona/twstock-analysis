@@ -13,17 +13,17 @@ import { MetricGroup, MetricRow } from "@/components/data/MetricRow";
 import { Disclaimer } from "@/components/ui/Disclaimer";
 import { EmptyState } from "@/components/ui/states";
 import { WatchToggle } from "@/components/watchlist/WatchToggle";
-import { COMPANIES, getCompany, getMetrics } from "@/lib/mock/companies";
-import { getPrices } from "@/lib/mock/prices";
+import { COMPANIES, getCompany, getMetrics } from "@/lib/data/companies";
+import { getPrices } from "@/lib/data/prices";
 import {
   getDerivedSeries,
   getDividends,
   getMonthlyRevenue,
-} from "@/lib/mock/financials";
-import { getScore } from "@/lib/mock/scoring";
-import { getAnalysis, hasFullAnalysis } from "@/lib/mock/analysis";
+} from "@/lib/data/financials";
+import { getScore } from "@/lib/data/scoring";
+import { getAnalysis, hasFullAnalysis } from "@/lib/data/analysis";
 import { SCORE_LABELS, SCORE_WEIGHTS, type ScoreBreakdown } from "@/lib/schema";
-import { formatPct, formatPrice, formatTWD } from "@/lib/format";
+import { formatMultiple, formatPct, formatPrice, formatTWD } from "@/lib/format";
 
 export function generateStaticParams() {
   return COMPANIES.map((c) => ({ id: c.stockId }));
@@ -109,10 +109,10 @@ export default async function StockPage({
           <MetricGroup title="估值">
             <MetricRow
               label="本益比"
-              value={`${formatPrice(metrics.pe, 2)}x`}
-              hint={`同業 ${formatPrice(metrics.industryPe, 1)}x`}
+              value={formatMultiple(metrics.pe, 2)}
+              hint={`同業 ${formatMultiple(metrics.industryPe, 1)}`}
             />
-            <MetricRow label="股價淨值比" value={`${formatPrice(metrics.pb, 2)}x`} />
+            <MetricRow label="股價淨值比" value={formatMultiple(metrics.pb, 2)} />
             <MetricRow
               label="殖利率"
               value={formatPct(metrics.dividendYield, 2, false)}
@@ -206,72 +206,89 @@ export default async function StockPage({
             />
           )}
 
-          <section className="border-t border-border pt-4">
-            <h2 className="mb-3 text-[0.6875rem] uppercase tracking-[0.12em] text-faint">
-              指標分佈
-            </h2>
-            <ScoreRadar dimensions={analysis.dimensions} size={210} />
-          </section>
+          {/* 指標分佈由企業層級財務指標推導；ETF 沒有這些指標，不畫（否則會是一面假的平均值雷達）*/}
+          {!isEtf && (
+            <section className="border-t border-border pt-4">
+              <h2 className="mb-3 text-[0.6875rem] uppercase tracking-[0.12em] text-faint">
+                指標分佈
+              </h2>
+              <ScoreRadar dimensions={analysis.dimensions} size={210} />
+            </section>
+          )}
         </aside>
       </div>
 
       {/* ── 財報圖表 ─────────────────────────────────── */}
-      {!isEtf && derived.length > 0 ? (
-        <div className="mb-10 grid gap-x-10 gap-y-8 lg:grid-cols-2">
-          <section aria-labelledby="margin-h" className="border-t border-border pt-4">
-            <h2
-              id="margin-h"
-              className="mb-3 text-[0.6875rem] uppercase tracking-[0.12em] text-faint"
-            >
-              利潤率與 ROE 趨勢
-            </h2>
-            <MarginTrendChart data={derived} />
-          </section>
-
-          <section aria-labelledby="eps-h" className="border-t border-border pt-4">
-            <h2
-              id="eps-h"
-              className="mb-3 text-[0.6875rem] uppercase tracking-[0.12em] text-faint"
-            >
-              季度 EPS
-            </h2>
-            <EpsChart data={derived} />
-          </section>
-
-          <section
-            aria-labelledby="rev-h"
-            className="border-t border-border pt-4 lg:col-span-2"
-          >
-            <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
-              <h2
-                id="rev-h"
-                className="text-[0.6875rem] uppercase tracking-[0.12em] text-faint"
-              >
-                月營收（億元，柱體顏色依年增率）
-              </h2>
-              {latestMonth && (
-                <p className="text-xs text-muted">
-                  最新 {latestMonth.month}：
-                  <span className="num ml-1">{formatTWD(latestMonth.revenue)}</span>
-                  <span className="mx-2 text-faint">年增</span>
-                  <DeltaValue value={latestMonth.yoy} digits={1} />
-                  <span className="mx-2 text-faint">月增</span>
-                  <DeltaValue value={latestMonth.mom} digits={1} />
-                </p>
-              )}
-            </div>
-            <MonthlyRevenueChart data={monthly} />
-          </section>
-        </div>
-      ) : (
+      {/*
+        三塊的資料可得性不同，分別開關，不共用一個閘：
+        - 利潤率／EPS 趨勢：需要損益表結構，金融股（利息收入型）沒有，derived 為空
+        - 月營收：一般業與金融股都有公告，ETF 沒有
+        所以金融股會顯示月營收、但不顯示利潤率趨勢，這是正確的，
+        不能因為沒有利潤率就把它整段當成「ETF 無財報」。
+      */}
+      {isEtf ? (
         <EmptyState
           className="mb-10"
           title="無企業財報資料"
           description="此標的為 ETF，不適用損益表與月營收公告。若要分析成分股的基本面，請直接搜尋個股代號。"
         />
+      ) : (
+        <div className="mb-10 grid gap-x-10 gap-y-8 lg:grid-cols-2">
+          {derived.length > 0 && (
+            <>
+              <section aria-labelledby="margin-h" className="border-t border-border pt-4">
+                <h2
+                  id="margin-h"
+                  className="mb-3 text-[0.6875rem] uppercase tracking-[0.12em] text-faint"
+                >
+                  利潤率與 ROE 趨勢
+                </h2>
+                <MarginTrendChart data={derived} />
+              </section>
+
+              <section aria-labelledby="eps-h" className="border-t border-border pt-4">
+                <h2
+                  id="eps-h"
+                  className="mb-3 text-[0.6875rem] uppercase tracking-[0.12em] text-faint"
+                >
+                  季度 EPS
+                </h2>
+                <EpsChart data={derived} />
+              </section>
+            </>
+          )}
+
+          {monthly.length > 0 && (
+            <section
+              aria-labelledby="rev-h"
+              className="border-t border-border pt-4 lg:col-span-2"
+            >
+              <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
+                <h2
+                  id="rev-h"
+                  className="text-[0.6875rem] uppercase tracking-[0.12em] text-faint"
+                >
+                  月營收（億元，柱體顏色依年增率）
+                </h2>
+                {latestMonth && (
+                  <p className="text-xs text-muted">
+                    最新 {latestMonth.month}：
+                    <span className="num ml-1">{formatTWD(latestMonth.revenue)}</span>
+                    <span className="mx-2 text-faint">年增</span>
+                    <DeltaValue value={latestMonth.yoy} digits={1} />
+                    <span className="mx-2 text-faint">月增</span>
+                    <DeltaValue value={latestMonth.mom} digits={1} />
+                  </p>
+                )}
+              </div>
+              <MonthlyRevenueChart data={monthly} />
+            </section>
+          )}
+        </div>
       )}
 
-      {/* ── 股利 ─────────────────────────────────────── */}
+      {/* ── 股利（ETF 無公司股利，整段不顯示）─────────── */}
+      {dividends.length > 0 && (
       <section aria-labelledby="div-h" className="mb-10 border-t border-border pt-4">
         <h2
           id="div-h"
@@ -308,6 +325,7 @@ export default async function StockPage({
           </table>
         </div>
       </section>
+      )}
 
       {/* ── 財報摘要 ─────────────────────────────────── */}
       <section aria-labelledby="ai-h" className="border-t border-border pt-4">
