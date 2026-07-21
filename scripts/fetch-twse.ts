@@ -1,11 +1,17 @@
 /**
  * TWSE 資料收集器。
  *
- *   node scripts/fetch-twse.ts
+ *   node scripts/fetch-twse.ts            完整（含 MOPS 逐季財報與股利，約 30 分）
+ *   node scripts/fetch-twse.ts --daily    只更新每日資料（行情／大盤／法人／月營收）
  *
  * 把公開資料抓下來、正規化，寫進 data/*.json。前端只讀那些檔案，
  * 建置與執行期都不會對外連線 —— TWSE 會擋連續請求，不適合放在
  * request path 上，而且行情資料每天只更新一次。
+ *
+ * 兩種模式對應不同的更新頻率：逐季財報一季才換一次、股利一年幾次，
+ * 天天全抓既慢又徒增 MOPS 被擋的風險。--daily 略過 MOPS 逐季／股利兩步，
+ * fcf 由既有 quarterly.json 重算 TTM（不連線）、epsCagr5y 沿用既有 metrics.json，
+ * 並且不覆寫 quarterly.json／dividends.json。完整模式則全部重抓。
  *
  * 這是 PRD 裡 Data Collector 的前身，差別只在落地成 JSON 而不是 PostgreSQL。
  *
@@ -18,7 +24,7 @@
  * 缺的一律寫 null，不要用 0 或估計值填補。
  */
 
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -177,7 +183,9 @@ function buildMetrics(
 
 async function main(): Promise<void> {
   const started = Date.now();
+  const DAILY = process.argv.includes("--daily");
   await mkdir(DATA_DIR, { recursive: true });
+  log(DAILY ? "模式：每日更新（沿用既有季報／股利）\n" : "模式：完整（含 MOPS 逐季／股利）\n");
 
   log("① 全市場快照…");
   const snap = await fetchSnapshot();
@@ -257,60 +265,76 @@ async function main(): Promise<void> {
     .map((id) => ({ id, type: reportTypeOf(id) }))
     .filter((x): x is { id: string; type: ReportType } => x.type !== null);
 
-  log(`⑦ 逐季財報 —— MOPS（${quarterlyTickers.length} 檔 × ${QUARTERLY_HISTORY_COUNT} 季）…`);
+  // fcf 與 epsCagr5y 會併進 metrics.json；逐季／股利只在完整模式重抓，daily 沿用既有檔。
   const quarterlyByStock = new Map<string, QuarterlyFinancial[]>();
+  const dividendsByStock = new Map<string, DividendOut[]>();
   const fcfByStock = new Map<string, number | null>();
   const epsCagrByStock = new Map<string, number | null>();
-  for (const { id, type } of quarterlyTickers) {
-    const fin = snap.financials.get(id)!;
-    const latestQ = { year: fin.year, quarter: fin.quarter };
-    try {
-      const series = await fetchQuarterlyHistory(id, latestQ, QUARTERLY_HISTORY_COUNT, type);
-      quarterlyByStock.set(id, series);
-      // 金控沒有現金流量表，fcf 維持 null
-      fcfByStock.set(id, type === "general" ? trailingFcf(series) : null);
-      epsCagrByStock.set(id, await fetchEpsCagr5y(id, latestQ, type));
-      log(`   ${id}(${type === "general" ? "一般" : "金控"}) ${series.length} 季｜FCF ${fmtB(fcfByStock.get(id)!)}｜EPS CAGR ${epsCagrByStock.get(id) ?? "—"}`);
-    } catch (err) {
-      // 單一檔被 MOPS 持續限流時，讓它降級為「沒有逐季」而不是整批中止 ——
-      // 該檔的趨勢圖空、fcf／epsCagr5y 為 null，會在最後的缺漏報告裡列出來。
-      log(`   ${id} ⚠ 逐季抓取失敗，略過：${(err as Error).message.split("\n")[0]}`);
-    }
-  }
 
-  // 歷年股利：非 ETF 都有。取近 5 個「已完結年度」（<= 快照前一年），
-  // payout 用當年全年 EPS、殖利率用現價（歷史日價無法逐年回溯，屬近似）。
-  const snapYear = Number(snap.tradeDate.slice(0, 4));
-  log(`⑧ 歷年股利 —— MOPS（${quarterlyTickers.length} 檔）…`);
-  const dividendsByStock = new Map<string, DividendOut[]>();
-  for (const { id, type } of quarterlyTickers) {
-    try {
-      const price = snap.quotes.get(id)!.close;
-      const all = await fetchDividendHistory(id, snapYear - 1911 - 7, snapYear - 1911);
-      const years = all.filter((d) => d.year <= snapYear - 1).slice(-5);
-      const out: DividendOut[] = [];
-      for (const d of years) {
-        const eps = await fetchAnnualEps(id, d.year, type);
-        out.push({
-          stockId: id,
-          year: d.year,
-          cashDividend: d.cashDividend,
-          stockDividend: d.stockDividend,
-          payoutRatio:
-            eps !== null && eps > 0
-              ? Math.round(((d.cashDividend + d.stockDividend) / eps) * 1000) / 10
-              : 0,
-          yieldPct: price > 0 ? Math.round((d.cashDividend / price) * 10000) / 100 : 0,
-        });
+  if (DAILY) {
+    log("⑦ 季報衍生值 —— 沿用既有檔（daily 模式不重抓 MOPS）…");
+    const prevQuarterly =
+      (await readExisting<Record<string, QuarterlyFinancial[]>>("quarterly.json")) ?? {};
+    const prevMetrics = (await readExisting<MetricsOut[]>("metrics.json")) ?? [];
+    const prevEpsCagr = new Map(prevMetrics.map((m) => [m.stockId, m.epsCagr5y]));
+    for (const id of FOCUS_TICKERS) {
+      const series = prevQuarterly[id] ?? [];
+      // fcf 由既有逐季重算 TTM（純計算、不連線）；epsCagr5y 只有財報季才變，沿用舊值
+      fcfByStock.set(id, series.length ? trailingFcf(series) : null);
+      epsCagrByStock.set(id, prevEpsCagr.get(id) ?? null);
+    }
+  } else {
+    log(`⑦ 逐季財報 —— MOPS（${quarterlyTickers.length} 檔 × ${QUARTERLY_HISTORY_COUNT} 季）…`);
+    for (const { id, type } of quarterlyTickers) {
+      const fin = snap.financials.get(id)!;
+      const latestQ = { year: fin.year, quarter: fin.quarter };
+      try {
+        const series = await fetchQuarterlyHistory(id, latestQ, QUARTERLY_HISTORY_COUNT, type);
+        quarterlyByStock.set(id, series);
+        // 金控沒有現金流量表，fcf 維持 null
+        fcfByStock.set(id, type === "general" ? trailingFcf(series) : null);
+        epsCagrByStock.set(id, await fetchEpsCagr5y(id, latestQ, type));
+        log(`   ${id}(${type === "general" ? "一般" : "金控"}) ${series.length} 季｜FCF ${fmtB(fcfByStock.get(id)!)}｜EPS CAGR ${epsCagrByStock.get(id) ?? "—"}`);
+      } catch (err) {
+        // 單一檔被 MOPS 持續限流時，讓它降級為「沒有逐季」而不是整批中止 ——
+        // 該檔的趨勢圖空、fcf／epsCagr5y 為 null，會在最後的缺漏報告裡列出來。
+        log(`   ${id} ⚠ 逐季抓取失敗，略過：${(err as Error).message.split("\n")[0]}`);
       }
-      dividendsByStock.set(id, out);
-      log(`   ${id} ${out.length} 年（最新 ${out.at(-1)?.year ?? "—"}：現金 ${out.at(-1)?.cashDividend ?? "—"}）`);
-    } catch (err) {
-      log(`   ${id} ⚠ 股利抓取失敗，略過：${(err as Error).message.split("\n")[0]}`);
+    }
+
+    // 歷年股利：非 ETF 都有。取近 5 個「已完結年度」（<= 快照前一年），
+    // payout 用當年全年 EPS、殖利率用現價（歷史日價無法逐年回溯，屬近似）。
+    const snapYear = Number(snap.tradeDate.slice(0, 4));
+    log(`⑧ 歷年股利 —— MOPS（${quarterlyTickers.length} 檔）…`);
+    for (const { id, type } of quarterlyTickers) {
+      try {
+        const price = snap.quotes.get(id)!.close;
+        const all = await fetchDividendHistory(id, snapYear - 1911 - 7, snapYear - 1911);
+        const years = all.filter((d) => d.year <= snapYear - 1).slice(-5);
+        const out: DividendOut[] = [];
+        for (const d of years) {
+          const eps = await fetchAnnualEps(id, d.year, type);
+          out.push({
+            stockId: id,
+            year: d.year,
+            cashDividend: d.cashDividend,
+            stockDividend: d.stockDividend,
+            payoutRatio:
+              eps !== null && eps > 0
+                ? Math.round(((d.cashDividend + d.stockDividend) / eps) * 1000) / 10
+                : 0,
+            yieldPct: price > 0 ? Math.round((d.cashDividend / price) * 10000) / 100 : 0,
+          });
+        }
+        dividendsByStock.set(id, out);
+        log(`   ${id} ${out.length} 年（最新 ${out.at(-1)?.year ?? "—"}：現金 ${out.at(-1)?.cashDividend ?? "—"}）`);
+      } catch (err) {
+        log(`   ${id} ⚠ 股利抓取失敗，略過：${(err as Error).message.split("\n")[0]}`);
+      }
     }
   }
 
-  log("⑨ 組裝…");
+  log(`${DAILY ? "⑧" : "⑨"} 組裝…`);
   const companies = FOCUS_TICKERS.map((id, i) => buildCompany(id, i, snap));
   const metrics = FOCUS_TICKERS.map((id) => {
     const rev = revenueByStock.get(id);
@@ -367,8 +391,11 @@ async function main(): Promise<void> {
   await write("metrics.json", metrics);
   await write("market.json", market);
   await write("financials.json", financials);
-  await write("quarterly.json", Object.fromEntries(quarterlyByStock));
-  await write("dividends.json", Object.fromEntries(dividendsByStock));
+  // 逐季／股利只在完整模式重抓，daily 模式保留既有檔不覆寫
+  if (!DAILY) {
+    await write("quarterly.json", Object.fromEntries(quarterlyByStock));
+    await write("dividends.json", Object.fromEntries(dividendsByStock));
+  }
   await write("prices.json", Object.fromEntries(pricesByStock));
   await write("monthly-revenue.json", Object.fromEntries(revenueByStock));
   await write("institutional.json", groupBy(flows, (f) => f.stockId));
@@ -458,6 +485,15 @@ function groupBy<T>(rows: T[], key: (r: T) => string): Record<string, T[]> {
 
 async function write(name: string, value: unknown): Promise<void> {
   await writeFile(join(DATA_DIR, name), `${JSON.stringify(value, null, 2)}\n`, "utf8");
+}
+
+/** 讀既有的 data 檔（daily 模式沿用季報衍生值用）；不存在或壞掉回 null。 */
+async function readExisting<T>(name: string): Promise<T | null> {
+  try {
+    return JSON.parse(await readFile(join(DATA_DIR, name), "utf8")) as T;
+  } catch {
+    return null;
+  }
 }
 
 /**

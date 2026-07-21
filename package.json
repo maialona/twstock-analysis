@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "fetch:twse": "node scripts/fetch-twse.ts",
+    "fetch:daily": "node scripts/fetch-twse.ts --daily",
     "typecheck:scripts": "tsc -p tsconfig.scripts.json",
     "dev": "next dev",
     "build": "next build",
