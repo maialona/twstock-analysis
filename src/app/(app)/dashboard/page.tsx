@@ -4,16 +4,27 @@ import { CountUp } from "@/components/data/CountUp";
 import { DeltaValue } from "@/components/data/DeltaValue";
 import { Sparkline } from "@/components/data/Sparkline";
 import { Disclaimer } from "@/components/ui/Disclaimer";
-import { COMPANIES, METRICS_BY_ID } from "@/lib/mock/companies";
-import { RANKED_SCORES } from "@/lib/mock/scoring";
+import { COMPANIES, METRICS_BY_ID } from "@/lib/data/companies";
+import { RANKED_SCORES } from "@/lib/data/scoring";
 import {
   MARKET_BREADTH,
   MARKET_INDICES,
   MARKET_INSTITUTIONAL,
   MARKET_TURNOVER,
   getCloseSeries,
-} from "@/lib/mock/prices";
-import { cn, formatInt, formatPct, formatPrice, formatTWD } from "@/lib/format";
+} from "@/lib/data/prices";
+import {
+  cn,
+  deltaBg,
+  deltaClass,
+  formatInt,
+  formatPct,
+  formatFullDate,
+  formatMultiple,
+  formatPrice,
+  formatTWD,
+} from "@/lib/format";
+import { LATEST_DATE } from "@/lib/data/prices";
 
 export const metadata: Metadata = { title: "市場概況" };
 
@@ -40,7 +51,7 @@ export default function DashboardPage() {
         <div>
           <h1 className="text-xl font-semibold tracking-tight">市場概況</h1>
           <p className="mt-1 text-sm text-muted">
-            2026 年 7 月 17 日 收盤
+            {formatFullDate(LATEST_DATE)} 收盤
           </p>
         </div>
       </header>
@@ -125,10 +136,10 @@ export default function DashboardPage() {
                     <div
                       className={cn(
                         "absolute inset-y-0 rounded-sm",
-                        inst.net > 0 ? "bg-up" : "bg-down",
+                        deltaBg(inst.net),
                       )}
                       style={
-                        inst.net > 0
+                        inst.net >= 0
                           ? { left: "50%", width: `${pct / 2}%` }
                           : { right: "50%", width: `${pct / 2}%` }
                       }
@@ -137,7 +148,7 @@ export default function DashboardPage() {
                   <span
                     className={cn(
                       "num w-20 shrink-0 text-right text-xs",
-                      inst.net > 0 ? "text-up" : "text-down",
+                      deltaClass(inst.net),
                     )}
                   >
                     {formatTWD(inst.net)}
@@ -246,7 +257,7 @@ export default function DashboardPage() {
                       <DeltaValue value={m.changePct} arrow />
                     </td>
                     <td className="num py-1 pr-3 text-right text-muted">
-                      {formatPrice(m.pe, 1)}x
+                      {formatMultiple(m.pe, 1)}
                     </td>
                     <td className="num py-1 pr-3 text-right text-muted">
                       {formatPct(m.dividendYield, 2, false)}

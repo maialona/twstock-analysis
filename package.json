@@ -2,7 +2,10 @@
   "name": "tw-stock-analysis",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "scripts": {
+    "fetch:twse": "node scripts/fetch-twse.ts",
+    "typecheck:scripts": "tsc -p tsconfig.scripts.json",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",

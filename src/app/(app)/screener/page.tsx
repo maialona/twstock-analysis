@@ -1,5 +1,7 @@
+import { Suspense } from "react";
 import type { Metadata } from "next";
 import { RuleBuilder } from "@/components/screener/RuleBuilder";
+import { Skeleton } from "@/components/ui/states";
 
 export const metadata: Metadata = { title: "選股篩選" };
 
@@ -14,7 +16,28 @@ export default function ScreenerPage() {
         </p>
       </header>
 
-      <RuleBuilder />
+      {/*
+        RuleBuilder 用 useSearchParams 讀條件。這是預渲染路由，
+        Next.js 要求這類元件包在 Suspense 裡 —— 否則整棵子樹會被迫
+        改成 client-side render，連上面的靜態內容都不會出現在初始 HTML。
+      */}
+      <Suspense fallback={<RuleBuilderSkeleton />}>
+        <RuleBuilder />
+      </Suspense>
+    </div>
+  );
+}
+
+/** 版面與 RuleBuilder 的雙欄一致，避免條件載入時整頁跳動 */
+function RuleBuilderSkeleton() {
+  return (
+    <div className="grid gap-x-10 gap-y-8 lg:grid-cols-[22rem_1fr]">
+      <div className="flex flex-col gap-1.5" aria-hidden>
+        {[0, 1, 2, 3].map((i) => (
+          <Skeleton key={i} className="h-9 w-full" />
+        ))}
+      </div>
+      <Skeleton className="h-40 w-full" />
     </div>
   );
 }

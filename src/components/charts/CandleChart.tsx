@@ -56,6 +56,12 @@ export function CandleChart({ data, height = 380, className }: Props) {
 
     const chart = createChart(el, {
       height,
+      // 明確帶入當下量到的寬度。不給 width 時函式庫會自己量 el，
+      // 而這個 effect 可能在版面尚未穩定（字體還在載入）時就跑，
+      // 量到的寬度偏小 —— fitContent() 會據此算出很窄的 bar spacing，
+      // 之後 ResizeObserver 把畫布拉寬時 spacing 不會跟著變，
+      // 結果整組 K 棒被擠在右側一小條裡。
+      width: el.clientWidth,
       layout: {
         background: { color: "transparent" },
         textColor: c.muted,
@@ -93,9 +99,14 @@ export function CandleChart({ data, height = 380, className }: Props) {
       wickDownColor: c.down,
     });
 
+    // 成交量的最後值標籤與價格軸刻度共用右側同一條軸溝，
+    // 兩者會疊在一起（例如「9.98B」蓋掉「800.00」）——
+    // 成交量本來就有自己的柱體可讀，關掉標籤與價格線。
     const volume = chart.addSeries(HistogramSeries, {
       priceFormat: { type: "volume" },
       priceScaleId: "vol",
+      lastValueVisible: false,
+      priceLineVisible: false,
     });
     chart.priceScale("vol").applyOptions({
       scaleMargins: { top: 0.8, bottom: 0 },
@@ -126,10 +137,14 @@ export function CandleChart({ data, height = 380, className }: Props) {
     chart.timeScale().fitContent();
     setReady(true);
 
-    // RWD：容器寬度變化時同步調整
+    // RWD：容器寬度變化時同步調整。
+    // 改寬度後必須重新 fitContent —— bar spacing 是建立當下依寬度算出來的，
+    // 只改 width 不會重算，K 棒會維持原本的疏密而填不滿新的寬度。
     const ro = new ResizeObserver((entries) => {
       const w = entries[0]?.contentRect.width;
-      if (w) chart.applyOptions({ width: Math.floor(w) });
+      if (!w) return;
+      chart.applyOptions({ width: Math.floor(w) });
+      chart.timeScale().fitContent();
     });
     ro.observe(el);
 

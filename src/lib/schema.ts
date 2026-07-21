@@ -83,25 +83,38 @@ export const InstitutionalFlowSchema = z.object({
 export type InstitutionalFlow = z.infer<typeof InstitutionalFlowSchema>;
 
 /* ── Financial Engine 計算輸出（PRD 第六節）─────────────── */
+
+/**
+ * 除了股價與漲跌幅，其餘指標一律可為 null。
+ *
+ * 這不是防禦性寫法，是真實資料的形狀：
+ *  - 虧損公司沒有本益比（1301 台塑）
+ *  - 金控／銀行的損益表沒有「營業收入」，毛利率等比率不成立（2891 中信金）
+ *  - ETF 沒有財報（0050）
+ *  - TWSE 公開資料沒有現金流量表，自由現金流無從取得
+ *
+ * null 一律代表「這個數字不存在」，絕不用 0 代替 ——
+ * 本益比 0 和沒有本益比在篩選與評分上是完全不同的意思。
+ */
 export const MetricsSchema = z.object({
   stockId: z.string(),
   price: z.number(),
   changePct: z.number(),
-  eps: z.number(), // 近四季 EPS
-  epsCagr5y: z.number(),
-  roe: z.number(),
-  roa: z.number(),
-  pe: z.number(),
-  pb: z.number(),
-  dividendYield: z.number(),
-  debtRatio: z.number(),
-  grossMargin: z.number(),
-  operatingMargin: z.number(),
-  netMargin: z.number(),
-  fcf: z.number(),
-  revenueYoy: z.number(),
-  industryPe: z.number(),
-  marketCap: z.number(),
+  eps: z.number().nullable(), // 近四季 EPS
+  epsCagr5y: z.number().nullable(),
+  roe: z.number().nullable(),
+  roa: z.number().nullable(),
+  pe: z.number().nullable(),
+  pb: z.number().nullable(),
+  dividendYield: z.number().nullable(),
+  debtRatio: z.number().nullable(),
+  grossMargin: z.number().nullable(),
+  operatingMargin: z.number().nullable(),
+  netMargin: z.number().nullable(),
+  fcf: z.number().nullable(),
+  revenueYoy: z.number().nullable(),
+  industryPe: z.number().nullable(),
+  marketCap: z.number().nullable(),
 });
 export type Metrics = z.infer<typeof MetricsSchema>;
 
@@ -137,10 +150,26 @@ export const SCORE_LABELS: Record<keyof ScoreBreakdown, string> = {
   pe: "本益比",
 };
 
+/**
+ * 分項分數。某些指標目前沒有真實資料來源（EPS 五年 CAGR 需要五年歷史財報、
+ * 現金流評分需要現金流量表，TWSE 免費端點都不提供），這類分項為 null，
+ * total 會在可得的分項上重新配權，而不是把缺項當 0 拉低分數。
+ */
+export const NullableScoreBreakdownSchema = z.object({
+  epsGrowth: z.number().nullable(),
+  roe: z.number().nullable(),
+  grossMargin: z.number().nullable(),
+  revenueGrowth: z.number().nullable(),
+  cashFlow: z.number().nullable(),
+  debtRatio: z.number().nullable(),
+  pe: z.number().nullable(),
+});
+export type NullableScoreBreakdown = z.infer<typeof NullableScoreBreakdownSchema>;
+
 export const StockScoreSchema = z.object({
   stockId: z.string(),
   total: z.number().min(0).max(100),
-  breakdown: ScoreBreakdownSchema,
+  breakdown: NullableScoreBreakdownSchema,
 });
 export type StockScore = z.infer<typeof StockScoreSchema>;
 

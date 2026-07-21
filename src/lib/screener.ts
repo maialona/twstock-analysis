@@ -5,55 +5,69 @@ import {
   type MetricKey,
   type Rule,
 } from "@/lib/schema";
-import { COMPANY_BY_ID, METRICS, isOperatingCompany } from "@/lib/mock/companies";
-import { getScore } from "@/lib/mock/scoring";
-import { mulberry32, round, seedFrom } from "@/lib/mock/rng";
+import { COMPANY_BY_ID, METRICS, isOperatingCompany } from "@/lib/data/companies";
+import { getScore } from "@/lib/data/scoring";
+import { mulberry32, round, seedFrom } from "@/lib/rng";
 
 /**
  * Screener 評估引擎（PRD 第七節）。
  * 支援三種比較基準：絕對值、去年同期、產業平均 —
  * 後兩者是本工具與一般數值篩選器的差異點。
+ *
+ * 真實資料會有缺值（虧損股沒有本益比、金融股沒有毛利率）。缺值一律
+ * 讓該檔在該條件上「不通過」，而不是當成 0 —— 用不存在的數字去比大小，
+ * 得到的通過或不通過都沒有意義。
  */
 
-function metricValue(m: Metrics, key: MetricKey): number {
-  if (key === "marketCap") return m.marketCap / 1e8; // 換算為億元
+function metricValue(m: Metrics, key: MetricKey): number | null {
+  if (key === "marketCap") return m.marketCap === null ? null : m.marketCap / 1e8; // 億元
   return m[key];
 }
 
-/** 去年同期值。真實系統會查 DB，這裡以穩定 PRNG 反推一個合理基期 */
-function lastYearValue(m: Metrics, key: MetricKey): number {
-  const rand = mulberry32(seedFrom(`${m.stockId}-${key}-ly`));
+/**
+ * 去年同期值。真實系統會查 DB 的歷史財報；此處免費端點沒有歷史，
+ * 以穩定 PRNG 反推一個合理基期作為近似（模型值，非實際歷史）。
+ * 當期值本身缺漏時無法反推，回 null。
+ */
+function lastYearValue(m: Metrics, key: MetricKey): number | null {
   const current = metricValue(m, key);
+  if (current === null) return null;
+  const rand = mulberry32(seedFrom(`${m.stockId}-${key}-ly`));
 
-  // 成長型指標用實際成長率回推，其餘用小幅擾動
-  if (key === "eps") return round(current / (1 + m.epsCagr5y / 100), 2);
+  if (key === "eps") {
+    // 沒有五年 CAGR 就用溫和折讓近似，不硬套 null
+    const g = m.epsCagr5y ?? 8;
+    return round(current / (1 + g / 100), 2);
+  }
   if (key === "revenueYoy") return round(current - (rand() * 8 - 3), 1);
-  if (key === "marketCap") return round(current / (1 + m.revenueYoy / 100), 0);
+  if (key === "marketCap") return round(current / (1 + (m.revenueYoy ?? 8) / 100), 0);
 
   const drift = (rand() - 0.45) * 0.14;
   return round(current * (1 - drift), 2);
 }
 
-function industryAvgValue(m: Metrics, key: MetricKey): number {
+function industryAvgValue(m: Metrics, key: MetricKey): number | null {
   if (key === "pe") return m.industryPe;
 
-  // 同產業其他個股的平均
+  // 同產業其他個股的平均（略過缺值者）
   const peers = METRICS.filter(
     (p) =>
       p.stockId !== m.stockId &&
       isOperatingCompany(p.stockId) &&
       industryOf(p.stockId) === industryOf(m.stockId),
   );
-  if (peers.length === 0) return metricValue(m, key);
-  const sum = peers.reduce((s, p) => s + metricValue(p, key), 0);
-  return round(sum / peers.length, 2);
+  const values = peers
+    .map((p) => metricValue(p, key))
+    .filter((v): v is number => v !== null);
+  if (values.length === 0) return metricValue(m, key);
+  return round(values.reduce((s, v) => s + v, 0) / values.length, 2);
 }
 
 function industryOf(stockId: string): string {
   return COMPANY_BY_ID.get(stockId)?.industry ?? "";
 }
 
-export function resolveTarget(m: Metrics, rule: Rule): number {
+export function resolveTarget(m: Metrics, rule: Rule): number | null {
   switch (rule.target.kind) {
     case "value":
       return rule.target.value;
@@ -64,7 +78,9 @@ export function resolveTarget(m: Metrics, rule: Rule): number {
   }
 }
 
-function compare(a: number, op: Comparator, b: number): boolean {
+function compare(a: number | null, op: Comparator, b: number | null): boolean {
+  // 任一邊沒有數字，這條件就不成立 —— 不拿不存在的值去比大小
+  if (a === null || b === null) return false;
   switch (op) {
     case "gt":
       return a > b;
@@ -79,8 +95,8 @@ function compare(a: number, op: Comparator, b: number): boolean {
 
 export type RuleResult = {
   rule: Rule;
-  actual: number;
-  target: number;
+  actual: number | null;
+  target: number | null;
   passed: boolean;
 };
 

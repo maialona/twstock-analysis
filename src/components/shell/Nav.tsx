@@ -48,8 +48,13 @@ export function Nav() {
 /** 個股頁面的返回連結會用到 */
 export function BrandMark() {
   return (
-    <Link href="/" className="flex items-center gap-2 px-2.5 py-1">
-      <ChartLineUp size={18} weight="bold" className="text-accent" />
+    // shrink-0 / whitespace-nowrap：行動版頂欄裡搜尋框會搶寬度，
+    // 沒有這兩個 class 時「測度」會被壓成兩行（測 / 度）。
+    <Link
+      href="/"
+      className="flex shrink-0 items-center gap-2 whitespace-nowrap px-2.5 py-1"
+    >
+      <ChartLineUp size={18} weight="bold" className="shrink-0 text-accent" />
       <span className="text-sm font-semibold tracking-tight">測度</span>
     </Link>
   );

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { EmptyState } from "@/components/ui/states";
-import { COMPANIES } from "@/lib/mock/companies";
+import { COMPANIES } from "@/lib/data/companies";
 
 export default function StockNotFound() {
   return (

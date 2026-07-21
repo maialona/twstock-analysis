@@ -131,3 +131,15 @@ export function formatMonthLabel(ym: string): string {
 export function formatQuarter(year: number, quarter: number): string {
   return `${year} Q${quarter}`;
 }
+
+/** ISO date → "2026 年 7 月 20 日" */
+export function formatFullDate(iso: string): string {
+  const [y, m, d] = iso.split("-");
+  return `${y} 年 ${Number(m)} 月 ${Number(d)} 日`;
+}
+
+/** 本益比：有值時附上 x，缺值（虧損股）顯示破折號而非「—x」 */
+export function formatMultiple(n: number | null | undefined, digits = 2): string {
+  if (n === null || n === undefined || Number.isNaN(n)) return "—";
+  return `${nf(digits, digits).format(n)}x`;
+}

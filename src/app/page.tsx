@@ -3,9 +3,9 @@ import { ArrowRight, ChartLineUp } from "@phosphor-icons/react/dist/ssr";
 import { DeltaValue } from "@/components/data/DeltaValue";
 import { Sparkline } from "@/components/data/Sparkline";
 import { Disclaimer } from "@/components/ui/Disclaimer";
-import { COMPANY_BY_ID, METRICS_BY_ID } from "@/lib/mock/companies";
-import { MARKET_INDICES, getCloseSeries } from "@/lib/mock/prices";
-import { RANKED_SCORES } from "@/lib/mock/scoring";
+import { COMPANY_BY_ID, METRICS_BY_ID } from "@/lib/data/companies";
+import { MARKET_INDICES, getCloseSeries } from "@/lib/data/prices";
+import { RANKED_SCORES } from "@/lib/data/scoring";
 import { formatPrice } from "@/lib/format";
 
 /**
