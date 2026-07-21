@@ -1,0 +1,53 @@
+# 完整更新：含 MOPS 逐季財報與歷年股利（約 30 分）。逐季一季才換、股利一年幾次，
+# 每週跑一次即可在財報季一週內接上。也可手動觸發。
+#
+# 風險提醒：MOPS 對連續請求有反爬蟲（HTTP 307），從 GitHub 機房 IP 可能比本機更早被擋。
+# 收集器已內建節流／退避／單檔降級，被擋的個股會降級為無逐季並列入缺漏報告，不會整批失敗。
+# 若機房 IP 常態被擋，改用 self-hosted runner（最好在台灣網段）。
+name: refresh-full
+
+on:
+  schedule:
+    - cron: "0 9 * * 6" # UTC 09:00 週六 ≈ 台北 17:00
+  workflow_dispatch: {}
+
+concurrency:
+  group: data-refresh
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "25"
+          cache: npm
+
+      - run: npm ci
+
+      - name: 抓完整資料（含逐季財報與股利）
+        run: npm run fetch:twse
+
+      - name: 一致性測試
+        run: npm test
+
+      - name: 有變動才提交
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/
+          changed=$(git diff --staged --name-only | grep -v '^data/meta.json$' || true)
+          if [ -z "$changed" ]; then
+            echo "無資料變動，略過提交。"
+            git reset --quiet
+          else
+            git commit -m "chore(data): 完整快照更新 $(date -u +%Y-%m-%d)"
+            git push
+          fi

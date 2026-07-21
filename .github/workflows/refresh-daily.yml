@@ -1,0 +1,51 @@
+# 每日更新：行情／大盤／法人／月營收。逐季財報與股利不動（見 refresh-full.yml）。
+# 只在真正有資料變動時才 commit（meta.json 的時間戳每次都變，單獨變動不觸發提交）。
+name: refresh-daily
+
+on:
+  schedule:
+    # UTC 08:00 ≈ 台北 16:00，週一至週五收盤後。openapi 快照落後約一個交易日，
+    # 抓到的就是當下最新的一日，收集器以快照日為唯一基準。
+    - cron: "0 8 * * 1-5"
+  workflow_dispatch: {}
+
+concurrency:
+  group: data-refresh
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "25"
+          cache: npm
+
+      - run: npm ci
+
+      - name: 抓每日資料
+        run: npm run fetch:daily
+
+      - name: 一致性測試（表頭現價 == K 線最後收盤 等）
+        run: npm test
+
+      - name: 有變動才提交
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/
+          # meta.json 的 fetchedAt 每次都會變，若「只有」它變就不算真正更新
+          changed=$(git diff --staged --name-only | grep -v '^data/meta.json$' || true)
+          if [ -z "$changed" ]; then
+            echo "無市場資料變動（非交易日或尚未更新），略過提交。"
+            git reset --quiet
+          else
+            git commit -m "chore(data): 每日快照更新 $(date -u +%Y-%m-%d)"
+            git push
+          fi

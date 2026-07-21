@@ -29,9 +29,20 @@
 ## 資料收集
 
 ```bash
-npm run fetch:twse       # 抓 TWSE 公開資料，寫進 data/*.json（約 12 分鐘）
+npm run fetch:twse       # 完整：含 MOPS 逐季財報與股利（約 30 分鐘）
+npm run fetch:daily      # 每日：只更新行情／大盤／法人／月營收（約 5 分鐘）
 npm run typecheck:scripts
 ```
+
+兩種模式對應不同更新頻率。逐季財報一季才換一次、股利一年幾次，天天全抓既慢又
+徒增 MOPS 被擋的風險；`--daily` 略過那兩步，`fcf` 由既有 `quarterly.json` 重算 TTM、
+`epsCagr5y` 沿用既有 `metrics.json`，且不覆寫 `quarterly.json`／`dividends.json`。
+
+自動更新走 GitHub Actions（`.github/workflows/`）：`refresh-daily` 於交易日收盤後跑
+`fetch:daily`、`refresh-full` 每週跑完整版，兩者都只在資料真正有變動時才 commit
+（`meta.json` 的時間戳單獨變動不觸發），push 後由部署平台自動重建。
+MOPS 反爬蟲從機房 IP 可能較兇，被擋的個股會降級為無逐季並列入缺漏報告；
+若常態被擋，改用 self-hosted runner。
 
 來源全部是 TWSE / MOPS 的公開端點，不需要金鑰：
 
