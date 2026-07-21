@@ -12,7 +12,7 @@
  * ── 已知的資料缺口（不是 bug，是來源就沒有）──────────────
  *  fcf         一般業由 MOPS 現金流量表算 TTM 自由現金流；金控／ETF 仍為 null
  *  epsCagr5y   一般業由 MOPS 逐年全年 EPS 回歸；缺五年兩端點者為 null
- *  金融股      金控／銀行損益表沒有「營業收入」，毛利率等比率不成立，不抓逐季
+ *  金融股      金控合併損益表（step=2）有淨利／EPS，但無營收→無毛利率、無現金流
  *  虧損股      沒有本益比（例：1301 台塑）
  *  ETF         沒有財報、月營收、本益比
  * 缺的一律寫 null，不要用 0 或估計值填補。
@@ -43,10 +43,13 @@ import {
   type Snapshot,
 } from "./twse/snapshot.ts";
 import {
+  fetchAnnualEps,
   fetchEpsCagr5y,
   fetchQuarterlyHistory,
   type QuarterlyFinancial,
+  type ReportType,
 } from "./twse/financials-history.ts";
+import { fetchDividendHistory } from "./twse/dividends.ts";
 import {
   ETF_TICKERS,
   FOCUS_TICKERS,
@@ -83,6 +86,15 @@ type MetricsOut = {
   marketCap: number | null;
 };
 
+type DividendOut = {
+  stockId: string;
+  year: number;
+  cashDividend: number;
+  stockDividend: number;
+  payoutRatio: number;
+  yieldPct: number;
+};
+
 const r1 = (n: number | null): number | null =>
   n === null ? null : Math.round(n * 10) / 10;
 const r2 = (n: number | null): number | null =>
@@ -95,7 +107,9 @@ const r2 = (n: number | null): number | null =>
 function trailingFcf(series: QuarterlyFinancial[]): number | null {
   if (series.length < 4) return null;
   const last4 = series.slice(-4);
-  return last4.reduce((s, q) => s + q.operatingCashFlow - q.capex, 0);
+  // 金控沒有現金流量表（ocf／capex 為 null），無從計算
+  if (last4.some((q) => q.operatingCashFlow === null || q.capex === null)) return null;
+  return last4.reduce((s, q) => s + (q.operatingCashFlow as number) - (q.capex as number), 0);
 }
 
 const fmtB = (n: number | null): string =>
@@ -231,25 +245,32 @@ async function main(): Promise<void> {
   }
   log(`   ${marketFlows.length} 日`);
 
-  // 只有一般業有逐季損益／現金流可抓。金控（金控損益表無營收、格式不同）
-  // 與 ETF（無財報）跳過 —— 它們的 fcf／epsCagr5y／季度趨勢一律留 null／空。
-  const generalTickers = FOCUS_TICKERS.filter(
-    (id) => snap.financials.get(id)?.reportType === "general",
-  );
+  // 逐季財報：一般業有完整損益／現金流；金控（step=2 的合併報表）只有淨利／EPS／
+  // 權益，無營收與現金流，故不算 fcf。ETF 無財報，兩者皆跳過。
+  const reportTypeOf = (id: string): ReportType | null => {
+    const t = snap.financials.get(id)?.reportType;
+    if (t === "general") return "general";
+    if (t === "financialHolding") return "financialHolding";
+    return null; // 銀行／證券／保險／ETF 這一版不逐季
+  };
+  const quarterlyTickers = FOCUS_TICKERS
+    .map((id) => ({ id, type: reportTypeOf(id) }))
+    .filter((x): x is { id: string; type: ReportType } => x.type !== null);
 
-  log(`⑦ 逐季財報 —— MOPS（${generalTickers.length} 檔一般業 × ${QUARTERLY_HISTORY_COUNT} 季）…`);
+  log(`⑦ 逐季財報 —— MOPS（${quarterlyTickers.length} 檔 × ${QUARTERLY_HISTORY_COUNT} 季）…`);
   const quarterlyByStock = new Map<string, QuarterlyFinancial[]>();
   const fcfByStock = new Map<string, number | null>();
   const epsCagrByStock = new Map<string, number | null>();
-  for (const id of generalTickers) {
+  for (const { id, type } of quarterlyTickers) {
     const fin = snap.financials.get(id)!;
     const latestQ = { year: fin.year, quarter: fin.quarter };
     try {
-      const series = await fetchQuarterlyHistory(id, latestQ, QUARTERLY_HISTORY_COUNT);
+      const series = await fetchQuarterlyHistory(id, latestQ, QUARTERLY_HISTORY_COUNT, type);
       quarterlyByStock.set(id, series);
-      fcfByStock.set(id, trailingFcf(series));
-      epsCagrByStock.set(id, await fetchEpsCagr5y(id, latestQ));
-      log(`   ${id} ${series.length} 季｜FCF ${fmtB(fcfByStock.get(id)!)}｜EPS CAGR ${epsCagrByStock.get(id) ?? "—"}`);
+      // 金控沒有現金流量表，fcf 維持 null
+      fcfByStock.set(id, type === "general" ? trailingFcf(series) : null);
+      epsCagrByStock.set(id, await fetchEpsCagr5y(id, latestQ, type));
+      log(`   ${id}(${type === "general" ? "一般" : "金控"}) ${series.length} 季｜FCF ${fmtB(fcfByStock.get(id)!)}｜EPS CAGR ${epsCagrByStock.get(id) ?? "—"}`);
     } catch (err) {
       // 單一檔被 MOPS 持續限流時，讓它降級為「沒有逐季」而不是整批中止 ——
       // 該檔的趨勢圖空、fcf／epsCagr5y 為 null，會在最後的缺漏報告裡列出來。
@@ -257,7 +278,39 @@ async function main(): Promise<void> {
     }
   }
 
-  log("⑧ 組裝…");
+  // 歷年股利：非 ETF 都有。取近 5 個「已完結年度」（<= 快照前一年），
+  // payout 用當年全年 EPS、殖利率用現價（歷史日價無法逐年回溯，屬近似）。
+  const snapYear = Number(snap.tradeDate.slice(0, 4));
+  log(`⑧ 歷年股利 —— MOPS（${quarterlyTickers.length} 檔）…`);
+  const dividendsByStock = new Map<string, DividendOut[]>();
+  for (const { id, type } of quarterlyTickers) {
+    try {
+      const price = snap.quotes.get(id)!.close;
+      const all = await fetchDividendHistory(id, snapYear - 1911 - 7, snapYear - 1911);
+      const years = all.filter((d) => d.year <= snapYear - 1).slice(-5);
+      const out: DividendOut[] = [];
+      for (const d of years) {
+        const eps = await fetchAnnualEps(id, d.year, type);
+        out.push({
+          stockId: id,
+          year: d.year,
+          cashDividend: d.cashDividend,
+          stockDividend: d.stockDividend,
+          payoutRatio:
+            eps !== null && eps > 0
+              ? Math.round(((d.cashDividend + d.stockDividend) / eps) * 1000) / 10
+              : 0,
+          yieldPct: price > 0 ? Math.round((d.cashDividend / price) * 10000) / 100 : 0,
+        });
+      }
+      dividendsByStock.set(id, out);
+      log(`   ${id} ${out.length} 年（最新 ${out.at(-1)?.year ?? "—"}：現金 ${out.at(-1)?.cashDividend ?? "—"}）`);
+    } catch (err) {
+      log(`   ${id} ⚠ 股利抓取失敗，略過：${(err as Error).message.split("\n")[0]}`);
+    }
+  }
+
+  log("⑨ 組裝…");
   const companies = FOCUS_TICKERS.map((id, i) => buildCompany(id, i, snap));
   const metrics = FOCUS_TICKERS.map((id) => {
     const rev = revenueByStock.get(id);
@@ -315,6 +368,7 @@ async function main(): Promise<void> {
   await write("market.json", market);
   await write("financials.json", financials);
   await write("quarterly.json", Object.fromEntries(quarterlyByStock));
+  await write("dividends.json", Object.fromEntries(dividendsByStock));
   await write("prices.json", Object.fromEntries(pricesByStock));
   await write("monthly-revenue.json", Object.fromEntries(revenueByStock));
   await write("institutional.json", groupBy(flows, (f) => f.stockId));

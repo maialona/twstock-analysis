@@ -36,18 +36,26 @@ async function throttle(): Promise<void> {
 }
 
 type StatementKind = "sb03" | "sb04" | "sb05";
+export type ReportType = "general" | "financialHolding";
+
+/**
+ * 金控是控股公司，t164 查詢預設回子公司清單頁（step=1）；合併報表要 step=2
+ * 才會實際回表（等同 picker 上按「詳細資料」）。一般業維持 step=1。
+ */
+const stepFor = (t: ReportType): string => (t === "financialHolding" ? "2" : "1");
 
 async function fetchStatement(
   kind: StatementKind,
   coId: string,
   rocYear: number,
   season: string,
+  step: string,
   retries = 5,
 ): Promise<string> {
   const ep = `ajax_t164${kind}`;
   const body = new URLSearchParams({
     encodeURIComponent: "1",
-    step: "1",
+    step,
     firstin: "1",
     off: "1",
     queryName: "co_id",
@@ -140,7 +148,8 @@ const IS_LABELS = {
   revenue: ["營業收入合計", "營業收入"],
   grossProfit: ["營業毛利（毛損）淨額", "營業毛利（毛損）"],
   operatingIncome: ["營業利益（損失）"],
-  netIncome: ["本期淨利（淨損）"],
+  // 金控合併損益表沒有「營業收入」，稅後淨利的欄名也不同
+  netIncome: ["本期淨利（淨損）", "本期稅後淨利（淨損）"],
   eps: ["基本每股盈餘"],
 };
 const CF_LABELS = {
@@ -175,16 +184,18 @@ export type QuarterlyFinancial = {
   stockId: string;
   year: number;
   quarter: number;
-  revenue: number;
-  grossProfit: number;
-  operatingIncome: number;
+  // 金控合併損益表沒有營收與利潤結構，也不畫現金流 —— 這些對金控為 null
+  revenue: number | null;
+  grossProfit: number | null;
+  operatingIncome: number | null;
+  operatingCashFlow: number | null;
+  capex: number | null; // 正值（單季資本支出金額）
+  // 損益核心與資產負債金控與一般業都有
   netIncome: number;
   eps: number;
   equity: number;
   asset: number;
   liability: number;
-  operatingCashFlow: number;
-  capex: number; // 正值（單季資本支出金額）
 };
 
 const season = (q: number): string => String(q).padStart(2, "0");
@@ -193,17 +204,22 @@ async function fetchCumQuarter(
   coId: string,
   year: number,
   quarter: number,
+  reportType: ReportType,
 ): Promise<CumQuarter> {
   const rocYear = year - 1911;
   const s = season(quarter);
-  const [isHtml, cfHtml, bsHtml] = [
-    await fetchStatement("sb04", coId, rocYear, s),
-    await fetchStatement("sb05", coId, rocYear, s),
-    await fetchStatement("sb03", coId, rocYear, s),
-  ];
+  const step = stepFor(reportType);
+  const isFh = reportType === "financialHolding";
+
+  const isHtml = await fetchStatement("sb04", coId, rocYear, s, step);
+  const bsHtml = await fetchStatement("sb03", coId, rocYear, s, step);
+  // 金控不畫現金流（銀行的營業現金流由存放款主導，與「營業CF vs capex」的敘事不同），
+  // 少抓一張表也省請求
+  const cfHtml = isFh ? null : await fetchStatement("sb05", coId, rocYear, s, step);
+
   const isCol = cumulativeColIndex(isHtml);
-  const cfCol = cumulativeColIndex(cfHtml);
   const bsCol = cumulativeColIndex(bsHtml);
+  const cfCol = cfHtml ? cumulativeColIndex(cfHtml) : 0;
 
   return {
     year,
@@ -213,8 +229,8 @@ async function fetchCumQuarter(
     operatingIncome: cumValue(isHtml, IS_LABELS.operatingIncome, isCol),
     netIncome: cumValue(isHtml, IS_LABELS.netIncome, isCol),
     eps: cumValue(isHtml, IS_LABELS.eps, isCol),
-    operatingCashFlow: cumValue(cfHtml, CF_LABELS.operatingCashFlow, cfCol),
-    capex: cumValue(cfHtml, CF_LABELS.capex, cfCol),
+    operatingCashFlow: cfHtml ? cumValue(cfHtml, CF_LABELS.operatingCashFlow, cfCol) : null,
+    capex: cfHtml ? cumValue(cfHtml, CF_LABELS.capex, cfCol) : null,
     asset: cumValue(bsHtml, BS_LABELS.asset, bsCol),
     liability: cumValue(bsHtml, BS_LABELS.liability, bsCol),
     equity: cumValue(bsHtml, BS_LABELS.equity, bsCol),
@@ -256,10 +272,10 @@ function decumulate(cum: CumQuarter[]): QuarterlyFinancial[] {
       const ocf = flow(c.operatingCashFlow, prev, "operatingCashFlow");
       const capexSigned = flow(c.capex, prev, "capex");
 
-      // 這些欄位缺一不可（QuarterlyFinancial 皆為必填 number）；缺就整季跳過
+      // 金控與一般業共通的核心欄位缺一不可；缺就整季跳過。
+      // 營收／利潤結構／現金流是「一般業有、金控沒有」，允許為 null。
       if (
-        revenue === null || grossProfit === null || operatingIncome === null ||
-        netIncome === null || eps === null || ocf === null || capexSigned === null ||
+        netIncome === null || eps === null ||
         c.asset === null || c.liability === null || c.equity === null
       ) {
         continue;
@@ -269,20 +285,22 @@ function decumulate(cum: CumQuarter[]): QuarterlyFinancial[] {
       // 統一在此換算，讓 quarterly.json 與 metrics.fcf 直接可餵給 formatTWD / 圖表。
       // EPS 是每股元、非總額，不換算。
       const K = 1000;
+      const kOrNull = (n: number | null): number | null =>
+        n === null ? null : Math.round(n) * K;
       out.push({
         stockId: "", // 由呼叫端填
         year,
         quarter: q,
-        revenue: Math.round(revenue) * K,
-        grossProfit: Math.round(grossProfit) * K,
-        operatingIncome: Math.round(operatingIncome) * K,
+        revenue: kOrNull(revenue),
+        grossProfit: kOrNull(grossProfit),
+        operatingIncome: kOrNull(operatingIncome),
         netIncome: Math.round(netIncome) * K,
         eps: Math.round(eps * 100) / 100,
         equity: Math.round(c.equity) * K,
         asset: Math.round(c.asset) * K,
         liability: Math.round(c.liability) * K,
-        operatingCashFlow: Math.round(ocf) * K,
-        capex: Math.abs(Math.round(capexSigned)) * K, // 存正值，與模型版與 schema 一致
+        operatingCashFlow: kOrNull(ocf),
+        capex: capexSigned === null ? null : Math.abs(Math.round(capexSigned)) * K,
       });
     }
   }
@@ -299,6 +317,7 @@ export async function fetchQuarterlyHistory(
   stockId: string,
   latest: { year: number; quarter: number },
   count: number,
+  reportType: ReportType = "general",
 ): Promise<QuarterlyFinancial[]> {
   // 需要幾個完整年度才涵蓋 count 季（+1 保險，讓年初的 Q 也有前一季可減）
   const yearsBack = Math.ceil((count + latest.quarter) / 4);
@@ -307,7 +326,7 @@ export async function fetchQuarterlyHistory(
     for (let q = 4; q >= 1; q--) {
       // 跳過尚未公布的未來季
       if (year === latest.year && q > latest.quarter) continue;
-      cum.push(await fetchCumQuarter(stockId, year, q));
+      cum.push(await fetchCumQuarter(stockId, year, q, reportType));
     }
   }
   const single = decumulate(cum).map((s) => ({ ...s, stockId }));
@@ -317,9 +336,13 @@ export async function fetchQuarterlyHistory(
 /* ── EPS 五年 CAGR ────────────────────────────────────────── */
 
 /** 抓某年度的全年 EPS（Q4 累計即全年），拿不到回 null。 */
-async function fetchAnnualEps(coId: string, year: number): Promise<number | null> {
+export async function fetchAnnualEps(
+  coId: string,
+  year: number,
+  reportType: ReportType = "general",
+): Promise<number | null> {
   try {
-    const html = await fetchStatement("sb04", coId, year - 1911, "04");
+    const html = await fetchStatement("sb04", coId, year - 1911, "04", stepFor(reportType));
     return cumValue(html, IS_LABELS.eps, cumulativeColIndex(html));
   } catch {
     return null;
@@ -333,11 +356,12 @@ async function fetchAnnualEps(coId: string, year: number): Promise<number | null
 export async function fetchEpsCagr5y(
   stockId: string,
   latest: { year: number; quarter: number },
+  reportType: ReportType = "general",
 ): Promise<number | null> {
   const baseFY = latest.quarter === 4 ? latest.year : latest.year - 1;
   const [endEps, startEps] = [
-    await fetchAnnualEps(stockId, baseFY),
-    await fetchAnnualEps(stockId, baseFY - 5),
+    await fetchAnnualEps(stockId, baseFY, reportType),
+    await fetchAnnualEps(stockId, baseFY - 5, reportType),
   ];
   if (endEps === null || startEps === null || startEps <= 0 || endEps <= 0) {
     return null;
