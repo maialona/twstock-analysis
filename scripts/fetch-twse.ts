@@ -10,9 +10,9 @@
  * 這是 PRD 裡 Data Collector 的前身，差別只在落地成 JSON 而不是 PostgreSQL。
  *
  * ── 已知的資料缺口（不是 bug，是來源就沒有）──────────────
- *  fcf         TWSE 公開資料沒有現金流量表，自由現金流無從計算
- *  epsCagr5y   openapi 只給最新一季，沒有五年歷史可回歸
- *  金融股      金控／銀行損益表沒有「營業收入」，毛利率等比率不成立
+ *  fcf         一般業由 MOPS 現金流量表算 TTM 自由現金流；金控／ETF 仍為 null
+ *  epsCagr5y   一般業由 MOPS 逐年全年 EPS 回歸；缺五年兩端點者為 null
+ *  金融股      金控／銀行損益表沒有「營業收入」，毛利率等比率不成立，不抓逐季
  *  虧損股      沒有本益比（例：1301 台塑）
  *  ETF         沒有財報、月營收、本益比
  * 缺的一律寫 null，不要用 0 或估計值填補。
@@ -43,10 +43,16 @@ import {
   type Snapshot,
 } from "./twse/snapshot.ts";
 import {
+  fetchEpsCagr5y,
+  fetchQuarterlyHistory,
+  type QuarterlyFinancial,
+} from "./twse/financials-history.ts";
+import {
   ETF_TICKERS,
   FOCUS_TICKERS,
   INSTITUTIONAL_DAYS,
   PRICE_HISTORY_MONTHS,
+  QUARTERLY_HISTORY_COUNT,
 } from "./twse/universe.ts";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -82,10 +88,25 @@ const r1 = (n: number | null): number | null =>
 const r2 = (n: number | null): number | null =>
   n === null ? null : Math.round(n * 100) / 100;
 
+/**
+ * 近四季（TTM）自由現金流 = Σ(單季營業現金流 − 資本支出)。
+ * 不足四季就無法代表「一年」，寧可回 null 也不拿兩三季假裝年度值。
+ */
+function trailingFcf(series: QuarterlyFinancial[]): number | null {
+  if (series.length < 4) return null;
+  const last4 = series.slice(-4);
+  return last4.reduce((s, q) => s + q.operatingCashFlow - q.capex, 0);
+}
+
+const fmtB = (n: number | null): string =>
+  n === null ? "—" : `${(n / 1e8).toFixed(0)} 億`;
+
 function buildMetrics(
   stockId: string,
   snap: Snapshot,
   latestYoy: number | null,
+  fcf: number | null,
+  epsCagr5y: number | null,
 ): MetricsOut {
   const quote = snap.quotes.get(stockId)!;
   const val = snap.valuation.get(stockId);
@@ -119,8 +140,8 @@ function buildMetrics(
     price: quote.close,
     changePct: r2(quote.changePct)!,
     eps: r2(eps),
-    // 需要五年歷史財報，openapi 只給最新一季
-    epsCagr5y: null,
+    // 由 MOPS 逐年全年 EPS 回歸；拿不到五年兩端點時為 null（見 financials-history.ts）
+    epsCagr5y,
     roe: r1(roe),
     roa: r1(roa),
     pe,
@@ -130,8 +151,8 @@ function buildMetrics(
     grossMargin: r1(fin?.grossMargin ?? null),
     operatingMargin: r1(fin?.operatingMargin ?? null),
     netMargin: r1(fin?.netMargin ?? null),
-    // TWSE 公開資料沒有現金流量表
-    fcf: null,
+    // 近四季（TTM）自由現金流 = Σ(單季營業現金流 − 資本支出)，來自 MOPS 現金流量表
+    fcf,
     revenueYoy: r1(latestYoy),
     industryPe: industry ? snap.industryPe.get(industry) ?? null : null,
     marketCap: info ? Math.round(quote.close * sharesOutstanding(info)) : null,
@@ -210,12 +231,38 @@ async function main(): Promise<void> {
   }
   log(`   ${marketFlows.length} 日`);
 
-  log("⑦ 組裝…");
+  // 只有一般業有逐季損益／現金流可抓。金控（金控損益表無營收、格式不同）
+  // 與 ETF（無財報）跳過 —— 它們的 fcf／epsCagr5y／季度趨勢一律留 null／空。
+  const generalTickers = FOCUS_TICKERS.filter(
+    (id) => snap.financials.get(id)?.reportType === "general",
+  );
+
+  log(`⑦ 逐季財報 —— MOPS（${generalTickers.length} 檔一般業 × ${QUARTERLY_HISTORY_COUNT} 季）…`);
+  const quarterlyByStock = new Map<string, QuarterlyFinancial[]>();
+  const fcfByStock = new Map<string, number | null>();
+  const epsCagrByStock = new Map<string, number | null>();
+  for (const id of generalTickers) {
+    const fin = snap.financials.get(id)!;
+    const latestQ = { year: fin.year, quarter: fin.quarter };
+    try {
+      const series = await fetchQuarterlyHistory(id, latestQ, QUARTERLY_HISTORY_COUNT);
+      quarterlyByStock.set(id, series);
+      fcfByStock.set(id, trailingFcf(series));
+      epsCagrByStock.set(id, await fetchEpsCagr5y(id, latestQ));
+      log(`   ${id} ${series.length} 季｜FCF ${fmtB(fcfByStock.get(id)!)}｜EPS CAGR ${epsCagrByStock.get(id) ?? "—"}`);
+    } catch (err) {
+      // 單一檔被 MOPS 持續限流時，讓它降級為「沒有逐季」而不是整批中止 ——
+      // 該檔的趨勢圖空、fcf／epsCagr5y 為 null，會在最後的缺漏報告裡列出來。
+      log(`   ${id} ⚠ 逐季抓取失敗，略過：${(err as Error).message.split("\n")[0]}`);
+    }
+  }
+
+  log("⑧ 組裝…");
   const companies = FOCUS_TICKERS.map((id, i) => buildCompany(id, i, snap));
   const metrics = FOCUS_TICKERS.map((id) => {
     const rev = revenueByStock.get(id);
     const latestYoy = rev?.length ? rev[rev.length - 1].yoy : null;
-    return buildMetrics(id, snap, latestYoy);
+    return buildMetrics(id, snap, latestYoy, fcfByStock.get(id) ?? null, epsCagrByStock.get(id) ?? null);
   });
 
   const financials = Object.fromEntries(
@@ -267,6 +314,7 @@ async function main(): Promise<void> {
   await write("metrics.json", metrics);
   await write("market.json", market);
   await write("financials.json", financials);
+  await write("quarterly.json", Object.fromEntries(quarterlyByStock));
   await write("prices.json", Object.fromEntries(pricesByStock));
   await write("monthly-revenue.json", Object.fromEntries(revenueByStock));
   await write("institutional.json", groupBy(flows, (f) => f.stockId));

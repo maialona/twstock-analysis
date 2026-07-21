@@ -37,5 +37,11 @@ export const ETF_TICKERS = new Set(["0050"]);
 /** K 線歷史往回抓幾個月（逐月一個請求 × 每檔） */
 export const PRICE_HISTORY_MONTHS = 14;
 
+/**
+ * 逐季財報往回抓幾季（每季 3 張報表 × 每檔一般業，逐一請求 MOPS）。
+ * 12 季 = 近三年，足夠畫出趨勢；金控與 ETF 不抓。
+ */
+export const QUARTERLY_HISTORY_COUNT = 12;
+
 /** 法人進出往回抓幾個交易日（逐日一個請求，全市場共用） */
 export const INSTITUTIONAL_DAYS = 30;
