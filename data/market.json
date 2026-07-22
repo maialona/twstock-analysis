@@ -1,13 +1,12 @@
 {
-  "tradeDate": "2026-07-20",
+  "tradeDate": "2026-07-21",
   "indices": [
     {
       "name": "加權指數",
       "code": "TAIEX",
-      "value": 42449.7,
-      "changePct": -0.52,
+      "value": 44232.87,
+      "changePct": 4.2,
       "series": [
-        37714.15,
         38932.4,
         39616.63,
         39521.73,
@@ -66,58 +65,59 @@
         45631.59,
         45624.98,
         42671.27,
-        42449.7
+        42449.7,
+        44232.87
       ]
     },
     {
       "name": "台灣50",
       "code": "T50",
-      "value": 39339.94,
-      "changePct": -0.07,
+      "value": 41117.49,
+      "changePct": 4.52,
       "series": []
     },
     {
       "name": "半導體",
       "code": "SEMI",
-      "value": 1453.72,
-      "changePct": 0.29,
+      "value": 1519.21,
+      "changePct": 4.5,
       "series": []
     },
     {
       "name": "其他電子",
       "code": "OTHR",
-      "value": 255.44,
-      "changePct": -0.3,
+      "value": 268.96,
+      "changePct": 5.29,
       "series": []
     }
   ],
   "turnover": {
-    "value": 1041457434398,
-    "changePct": -21.9,
-    "fiveDayAvg": 1120718348345
+    "value": 866251695004,
+    "changePct": -16.8,
+    "fiveDayAvg": 1115477413812
   },
   "breadth": {
-    "advancing": 507,
-    "declining": 745,
-    "unchanged": 108,
-    "limitUp": 8,
-    "limitDown": 13
+    "advancing": 1065,
+    "declining": 201,
+    "unchanged": 89,
+    "limitUp": 23,
+    "limitDown": 1
   },
   "institutional": [
     {
       "name": "外資",
-      "net": -6083677676,
-      "streak": -12
+      "net": -4331862847,
+      "streak": -13
     },
     {
       "name": "投信",
-      "net": 16321796929,
-      "streak": 19
+      "net": 17113931143,
+      "streak": 20
     },
     {
       "name": "自營商",
-      "net": -14148121165,
-      "streak": -3
+      "net": -824467659,
+      "streak": -4
     }
   ]
 }
