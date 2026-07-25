@@ -6,7 +6,7 @@
       "cashDividend": 2.7,
       "stockDividend": 0,
       "payoutRatio": 77.1,
-      "yieldPct": 3.36
+      "yieldPct": 3.49
     },
     {
       "stockId": "1216",
@@ -14,7 +14,7 @@
       "cashDividend": 3.15,
       "stockDividend": 0,
       "payoutRatio": 104.3,
-      "yieldPct": 3.92
+      "yieldPct": 4.07
     },
     {
       "stockId": "1216",
@@ -22,7 +22,7 @@
       "cashDividend": 3,
       "stockDividend": 0,
       "payoutRatio": 92.9,
-      "yieldPct": 3.74
+      "yieldPct": 3.88
     },
     {
       "stockId": "1216",
@@ -30,7 +30,7 @@
       "cashDividend": 3,
       "stockDividend": 0,
       "payoutRatio": 82.4,
-      "yieldPct": 3.74
+      "yieldPct": 3.88
     },
     {
       "stockId": "1216",
@@ -38,7 +38,7 @@
       "cashDividend": 3,
       "stockDividend": 0,
       "payoutRatio": 87,
-      "yieldPct": 3.74
+      "yieldPct": 3.88
     }
   ],
   "1301": [
@@ -48,7 +48,7 @@
       "cashDividend": 8.2,
       "stockDividend": 0,
       "payoutRatio": 73.1,
-      "yieldPct": 13.53
+      "yieldPct": 13.08
     },
     {
       "stockId": "1301",
@@ -56,7 +56,7 @@
       "cashDividend": 4.2,
       "stockDividend": 0,
       "payoutRatio": 73.9,
-      "yieldPct": 6.93
+      "yieldPct": 6.7
     },
     {
       "stockId": "1301",
@@ -64,7 +64,7 @@
       "cashDividend": 1,
       "stockDividend": 0,
       "payoutRatio": 87,
-      "yieldPct": 1.65
+      "yieldPct": 1.59
     },
     {
       "stockId": "1301",
@@ -72,7 +72,7 @@
       "cashDividend": 0.5,
       "stockDividend": 0,
       "payoutRatio": 0,
-      "yieldPct": 0.83
+      "yieldPct": 0.8
     },
     {
       "stockId": "1301",
@@ -80,7 +80,7 @@
       "cashDividend": 0.5,
       "stockDividend": 0,
       "payoutRatio": 0,
-      "yieldPct": 0.83
+      "yieldPct": 0.8
     }
   ],
   "2308": [
@@ -90,7 +90,7 @@
       "cashDividend": 5.5,
       "stockDividend": 0,
       "payoutRatio": 53.3,
-      "yieldPct": 0.32
+      "yieldPct": 0.31
     },
     {
       "stockId": "2308",
@@ -98,7 +98,7 @@
       "cashDividend": 9.84,
       "stockDividend": 0,
       "payoutRatio": 78.2,
-      "yieldPct": 0.58
+      "yieldPct": 0.55
     },
     {
       "stockId": "2308",
@@ -106,7 +106,7 @@
       "cashDividend": 6.43,
       "stockDividend": 0,
       "payoutRatio": 50,
-      "yieldPct": 0.38
+      "yieldPct": 0.36
     },
     {
       "stockId": "2308",
@@ -114,7 +114,7 @@
       "cashDividend": 7,
       "stockDividend": 0,
       "payoutRatio": 51.6,
-      "yieldPct": 0.41
+      "yieldPct": 0.39
     },
     {
       "stockId": "2308",
@@ -122,7 +122,7 @@
       "cashDividend": 11.6,
       "stockDividend": 0,
       "payoutRatio": 50.1,
-      "yieldPct": 0.68
+      "yieldPct": 0.65
     }
   ],
   "2317": [
@@ -132,7 +132,7 @@
       "cashDividend": 5.2,
       "stockDividend": 0,
       "payoutRatio": 51.7,
-      "yieldPct": 2.22
+      "yieldPct": 2.06
     },
     {
       "stockId": "2317",
@@ -140,7 +140,7 @@
       "cashDividend": 5.3,
       "stockDividend": 0,
       "payoutRatio": 51.9,
-      "yieldPct": 2.26
+      "yieldPct": 2.1
     },
     {
       "stockId": "2317",
@@ -148,7 +148,7 @@
       "cashDividend": 5.4,
       "stockDividend": 0,
       "payoutRatio": 52.7,
-      "yieldPct": 2.3
+      "yieldPct": 2.14
     },
     {
       "stockId": "2317",
@@ -156,7 +156,7 @@
       "cashDividend": 5.8,
       "stockDividend": 0,
       "payoutRatio": 52.7,
-      "yieldPct": 2.47
+      "yieldPct": 2.3
     },
     {
       "stockId": "2317",
@@ -164,7 +164,7 @@
       "cashDividend": 7.2,
       "stockDividend": 0,
       "payoutRatio": 52.9,
-      "yieldPct": 3.07
+      "yieldPct": 2.85
     }
   ],
   "2330": [
@@ -190,7 +190,7 @@
       "cashDividend": 13,
       "stockDividend": 0,
       "payoutRatio": 40.2,
-      "yieldPct": 0.56
+      "yieldPct": 0.55
     },
     {
       "stockId": "2330",
@@ -198,7 +198,7 @@
       "cashDividend": 17,
       "stockDividend": 0,
       "payoutRatio": 37.6,
-      "yieldPct": 0.73
+      "yieldPct": 0.72
     },
     {
       "stockId": "2330",
@@ -206,7 +206,7 @@
       "cashDividend": 22,
       "stockDividend": 0,
       "payoutRatio": 33.2,
-      "yieldPct": 0.95
+      "yieldPct": 0.94
     }
   ],
   "2382": [
@@ -216,7 +216,7 @@
       "cashDividend": 6.6,
       "stockDividend": 0,
       "payoutRatio": 75.6,
-      "yieldPct": 2.09
+      "yieldPct": 2.01
     },
     {
       "stockId": "2382",
@@ -224,7 +224,7 @@
       "cashDividend": 6,
       "stockDividend": 0,
       "payoutRatio": 79.9,
-      "yieldPct": 1.9
+      "yieldPct": 1.83
     },
     {
       "stockId": "2382",
@@ -232,7 +232,7 @@
       "cashDividend": 9,
       "stockDividend": 0,
       "payoutRatio": 87.5,
-      "yieldPct": 2.85
+      "yieldPct": 2.74
     },
     {
       "stockId": "2382",
@@ -240,7 +240,7 @@
       "cashDividend": 13,
       "stockDividend": 0,
       "payoutRatio": 83.9,
-      "yieldPct": 4.11
+      "yieldPct": 3.96
     },
     {
       "stockId": "2382",
@@ -248,7 +248,7 @@
       "cashDividend": 15.6,
       "stockDividend": 0,
       "payoutRatio": 80.2,
-      "yieldPct": 4.94
+      "yieldPct": 4.76
     }
   ],
   "2412": [
@@ -300,7 +300,7 @@
       "cashDividend": 73,
       "stockDividend": 0,
       "payoutRatio": 103.5,
-      "yieldPct": 2.19
+      "yieldPct": 1.95
     },
     {
       "stockId": "2454",
@@ -308,7 +308,7 @@
       "cashDividend": 76,
       "stockDividend": 0,
       "payoutRatio": 101.9,
-      "yieldPct": 2.28
+      "yieldPct": 2.03
     },
     {
       "stockId": "2454",
@@ -316,7 +316,7 @@
       "cashDividend": 55,
       "stockDividend": 0,
       "payoutRatio": 113.4,
-      "yieldPct": 1.65
+      "yieldPct": 1.47
     },
     {
       "stockId": "2454",
@@ -324,7 +324,7 @@
       "cashDividend": 54,
       "stockDividend": 0,
       "payoutRatio": 80.7,
-      "yieldPct": 1.62
+      "yieldPct": 1.44
     },
     {
       "stockId": "2454",
@@ -332,7 +332,7 @@
       "cashDividend": 53.5,
       "stockDividend": 0,
       "payoutRatio": 80.9,
-      "yieldPct": 1.6
+      "yieldPct": 1.43
     }
   ],
   "2891": [
@@ -342,7 +342,7 @@
       "cashDividend": 1.25,
       "stockDividend": 0,
       "payoutRatio": 45.8,
-      "yieldPct": 2.03
+      "yieldPct": 1.97
     },
     {
       "stockId": "2891",
@@ -350,7 +350,7 @@
       "cashDividend": 1,
       "stockDividend": 0,
       "payoutRatio": 64.5,
-      "yieldPct": 1.63
+      "yieldPct": 1.57
     },
     {
       "stockId": "2891",
@@ -358,7 +358,7 @@
       "cashDividend": 1.8,
       "stockDividend": 0,
       "payoutRatio": 63.8,
-      "yieldPct": 2.93
+      "yieldPct": 2.83
     },
     {
       "stockId": "2891",
@@ -366,7 +366,7 @@
       "cashDividend": 2.3,
       "stockDividend": 0,
       "payoutRatio": 63.2,
-      "yieldPct": 3.74
+      "yieldPct": 3.62
     },
     {
       "stockId": "2891",
@@ -374,7 +374,7 @@
       "cashDividend": 2.5,
       "stockDividend": 0,
       "payoutRatio": 61.3,
-      "yieldPct": 4.07
+      "yieldPct": 3.93
     }
   ],
   "3034": [
@@ -384,7 +384,7 @@
       "cashDividend": 51.5,
       "stockDividend": 0,
       "payoutRatio": 80.6,
-      "yieldPct": 11.24
+      "yieldPct": 10.16
     },
     {
       "stockId": "3034",
@@ -392,7 +392,7 @@
       "cashDividend": 37,
       "stockDividend": 0,
       "payoutRatio": 80.5,
-      "yieldPct": 8.08
+      "yieldPct": 7.3
     },
     {
       "stockId": "3034",
@@ -400,7 +400,7 @@
       "cashDividend": 32,
       "stockDividend": 0,
       "payoutRatio": 83.5,
-      "yieldPct": 6.99
+      "yieldPct": 6.31
     },
     {
       "stockId": "3034",
@@ -408,7 +408,7 @@
       "cashDividend": 28,
       "stockDividend": 0,
       "payoutRatio": 83.8,
-      "yieldPct": 6.11
+      "yieldPct": 5.52
     },
     {
       "stockId": "3034",
@@ -416,7 +416,7 @@
       "cashDividend": 23,
       "stockDividend": 0,
       "payoutRatio": 85.6,
-      "yieldPct": 5.02
+      "yieldPct": 4.54
     }
   ],
   "3711": [
@@ -426,7 +426,7 @@
       "cashDividend": 7,
       "stockDividend": 0,
       "payoutRatio": 47.2,
-      "yieldPct": 1.17
+      "yieldPct": 1.14
     },
     {
       "stockId": "3711",
@@ -434,7 +434,7 @@
       "cashDividend": 8.8,
       "stockDividend": 0,
       "payoutRatio": 60.6,
-      "yieldPct": 1.47
+      "yieldPct": 1.44
     },
     {
       "stockId": "3711",
@@ -442,7 +442,7 @@
       "cashDividend": 5.2,
       "stockDividend": 0,
       "payoutRatio": 70.4,
-      "yieldPct": 0.87
+      "yieldPct": 0.85
     },
     {
       "stockId": "3711",
@@ -450,7 +450,7 @@
       "cashDividend": 5.3,
       "stockDividend": 0,
       "payoutRatio": 70.5,
-      "yieldPct": 0.89
+      "yieldPct": 0.86
     },
     {
       "stockId": "3711",
@@ -458,7 +458,7 @@
       "cashDividend": 6.6,
       "stockDividend": 0,
       "payoutRatio": 70.4,
-      "yieldPct": 1.11
+      "yieldPct": 1.08
     }
   ]
 }
